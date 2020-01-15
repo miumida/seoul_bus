@@ -36,3 +36,4 @@ sensor:
           - bus_id: '100100237'
 ```
 <br><br>
+## History
