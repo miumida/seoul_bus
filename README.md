@@ -77,7 +77,7 @@ sensor:
 
 ### 정류장 고유번호(station_id) 값 확인
 - station_id는 정류장 고유번호입니다.
-- 서울 버스도착정보 - 버스노선 사이트(http://bus.go.kr/searchResult6.jsp)에 접속하여 정류장을 조회하여 정류소번호를 확인합니다.
+- 서울 버스도착정보 - 버스노선 사이트(http://bus.go.kr/searchResult6.jsp)에 접속하여 정류장을 조회하여 ```정류소번호```를 확인합니다.
 
 ![screenshot_3](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_3.png?raw=true)<br>
 <br>
