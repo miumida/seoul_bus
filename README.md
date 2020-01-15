@@ -68,6 +68,11 @@ sensor:
 
 <br>
 
+### API KEY 발급
+공공데이터포털에서 버스도착정보조회 서비스(https://www.data.go.kr/dataset/15000314/openapi.do?mypageFlag=Y)를 발급신청하여 인증키를 발급받습니다.
+
+<br>
+
 ### station별 설정값
 
 |옵션|값|
