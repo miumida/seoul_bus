@@ -1,1 +1,1 @@
-# seoul_bus
+# Seoul Bus Sensor for Home Assistant
