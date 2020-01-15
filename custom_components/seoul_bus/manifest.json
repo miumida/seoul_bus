@@ -1,0 +1,10 @@
+{
+  "domain": "seoul_bus",
+  "name": "seoul_bus",
+  "documentation": "https://github.com/miumida/seoul_bus",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [
+    "@miumida"
+  ]
+}
