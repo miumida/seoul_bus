@@ -1,0 +1,466 @@
+import logging
+import requests
+import math
+import voluptuous as vol
+import homeassistant.helpers.config_validation as cv
+
+from datetime import timedelta
+from datetime import datetime
+
+from homeassistant.components.sensor import PLATFORM_SCHEMA
+from homeassistant.const import (CONF_NAME, CONF_API_KEY, CONF_ICON)
+from homeassistant.helpers.entity import Entity
+from homeassistant.util import Throttle
+
+REQUIREMENTS = ['xmltodict==0.12.0']
+
+_LOGGER = logging.getLogger(__name__)
+
+# configuration value
+CONF_API_ISSUED_DATE = 'api_issued_date'
+CONF_STATIONS = 'stations'
+CONF_STATION_ID = 'station_id'
+CONF_STATION_INCLUDE_BUSES = 'include_buses'
+CONF_STATION_EXCLUDE_BUSES = 'exclude_buses'
+CONF_STATION_UPDATE_TIME = 'update_time'
+CONF_START_TIME = 'start_time'
+CONF_END_TIME = 'end_time'
+CONF_BUS_ID = 'bus_id'
+CONF_VIEW_TYPE = 'view_type'
+
+# seoul bus api url
+SEOUL_BUS_API_URL = 'http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={}&arsId={}'
+
+# bus properties dict
+_BUS_PROPERTIES = {
+    'busRouteId': '노선ID',
+    'rtNm': '버스번호',
+    'sectNm': '구간',
+    'adirection': '방향',
+
+    'stNm': '정류장',
+    'arsId': '정류장고유번호',
+    'stId': '정류장ID',
+    'staOrd': '정류장순번',
+
+    'vehId1': '가까운 버스1 ID',
+    'traTime1': '가까운버스1 도착예정시간',
+    'arrmsg1': '가까운버스1 메세지',
+
+    'vehId2': '가까운 버스2 ID',
+    'traTime2': '가까운버스2 도착예정시간',
+    'arrmsg2': '가까운버스2 메세지',
+    'syncDate': 'Sync Date',
+    'start_time': '시작시간',
+    'end_time': '종료시간'
+}
+
+# default value
+DEFAULT_NAME = 'Seoul Bus'
+DEFAULT_STATION_NAME = 'Station'
+DEFAULT_VIEW_TYPE = 'S'
+
+# default icon
+DEFAULT_STATION_ICON   = 'mdi:nature-people'
+DEFAULT_BUS_ICON       = 'mdi:bus'
+DEFAULT_BUS_READY_ICON = 'mdi:bus-clock'
+DEFAULT_BUS_ALERT_ICON = 'mdi:bus-alert'
+
+# default_time
+DEFAULT_START_HOUR = 3
+DEFAULT_END_HOUR   = 24
+
+# update time
+MIN_TIME_BETWEEN_API_UPDATES    = timedelta(seconds=120) #
+MIN_TIME_BETWEEN_SENSOR_UPDATES = timedelta(seconds=60) #
+MIN_TIME_BETWEEN_API_SENSOR_UPDATES = timedelta(seconds=3600)
+
+# attribute value
+ATTR_ROUTE_ID = 'busRouteId'
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
+    vol.Required(CONF_API_KEY): cv.string,
+    vol.Optional(CONF_API_ISSUED_DATE): cv.string,
+    vol.Required(CONF_STATIONS): vol.All(cv.ensure_list, [{
+        vol.Required(CONF_STATION_ID): cv.string,
+        vol.Optional(CONF_NAME, default = DEFAULT_STATION_NAME): cv.string,
+        vol.Optional(CONF_ICON, default = DEFAULT_STATION_ICON): cv.string,
+        vol.Optional(CONF_STATION_UPDATE_TIME, default=[]): vol.All(cv.ensure_list, [{
+            vol.Required(CONF_START_TIME, default = ''): cv.string,
+            vol.Required(CONF_END_TIME, default =''): cv.string,
+        }]),
+        vol.Optional(CONF_STATION_INCLUDE_BUSES, default=[]): vol.All(cv.ensure_list, [{
+            vol.Required(CONF_BUS_ID, default = ''): cv.string,
+        }]),
+        vol.Optional(CONF_STATION_EXCLUDE_BUSES, default=[]): vol.All(cv.ensure_list, [{
+            vol.Required(CONF_BUS_ID, default = ''): cv.string,
+        }]),
+    }]),
+    vol.Optional(CONF_VIEW_TYPE, default = DEFAULT_VIEW_TYPE): cv.string,
+})
+
+def isBetweenNowTime(start, end):
+    rtn = False
+
+    now  = datetime.now()
+    year = now.year
+    mon  = now.month
+    day  = now.day
+    hour = now.hour
+    min  = now.minute
+
+    nowTime = datetime(year, mon, day, hour, min)
+
+    try:
+        arrTm1 = start.split(":")
+        arrTm2 = end.split(":")
+
+        st  = datetime(year, mon, day, int(arrTm1[0]), int(arrTm1[1]))
+        ed  = datetime(year, mon, day, int(arrTm2[0]), int(arrTm2[1]))
+
+        if nowTime >= st and nowTime <= ed:
+            rtn = True
+        else:
+            rtn = False
+    except Excption as ex:
+        _LOGGER.error('Failed to isTime()  Error: %s', ex)
+
+    return rtn
+
+# 초를 분으로 변환
+def second2min(val):
+
+    if 60 >  int(val):
+        return '{}초'.format(val)
+    else:
+        min = math.floor(int(val)/60)
+        sec = int(val)%60
+        return '{}분{}초'.format(str(min), str(sec))
+
+
+def setup_platform(hass, config, add_entities, discovery_info=None):
+    name = config.get(CONF_NAME)
+    api_key         = config.get(CONF_API_KEY)
+    api_issued_date = config.get(CONF_API_ISSUED_DATE)
+    stations        = config.get(CONF_STATIONS)
+    view_type       = config.get(CONF_VIEW_TYPE)
+
+    sensors = []
+
+    # api sensor add
+    if api_issued_date is not None:
+        sensors += [apiSensor(api_issued_date)]
+
+    # sensor add
+    for station in stations:
+        api = SeoulBusAPI(api_key, station[CONF_STATION_ID], station[CONF_STATION_UPDATE_TIME], view_type)
+
+        # station sensor add
+        sensor = BusStationSensor(station[CONF_STATION_ID], station[CONF_NAME], station[CONF_ICON], station[CONF_STATION_INCLUDE_BUSES], station[CONF_STATION_EXCLUDE_BUSES], api)
+        sensor.update()
+        sensors += [sensor]
+
+        # bus sensor add
+        for bus_id, value in sensor.buses.items():
+            sensors += [BusSensor(station[CONF_STATION_ID], station[CONF_NAME], bus_id, value.get(CONF_NAME, ''), value, api)]
+
+    add_entities(sensors, True)
+
+#api key 만료일 센서
+class apiSensor(Entity):
+    def __init__(self, api_issued_date):
+        self._issued_date = api_issued_date
+        self._dday = None
+
+    @property
+    def entity_id(self):
+        """Return the entity ID."""
+        return 'sensor.seoul_bus_api_info'
+
+    @property
+    def name(self):
+        """Return the name of the sensor, if any."""
+        return '서울버스 API정보'
+
+    @property
+    def icon(self):
+        """Icon to use in the frontend, if any."""
+        return 'mdi:key-variant'
+
+    @property
+    def state(self):
+        """Return the state of the sensor."""
+        return self._dday
+
+    @Throttle(MIN_TIME_BETWEEN_API_SENSOR_UPDATES)
+    def update(self):
+        """Get the latest state of the sensor."""
+        tmp = self._issued_date.split("-")
+
+        expired = datetime( year=int(tmp[0])+2, month=int(tmp[1]), day=int(tmp[2]) )
+
+        exp2day = expired - datetime.today()
+
+        self._dday = exp2day.days
+
+    @property
+    def unit_of_measurement(self):
+        """Return the unit the value is expressed in."""
+        return '일 후 만료'
+
+    @property
+    def device_state_attributes(self):
+        """Attributes."""
+        data = { 'API발급일' : self._issued_date,
+                 '만료까지' : self._dday  }
+        return data
+
+#서울버스 api
+class SeoulBusAPI:
+    """Seoul Bus API."""
+    def __init__(self, api_key, station_id, update_time, view_type):
+        """Initialize the Seoul Bus API."""
+        self._api_key = api_key
+        self._station_id  = station_id
+        self._update_time = update_time
+        self._isUpdate  = True
+        self._view_type = view_type
+        self._sync_date = None
+        self.result = {}
+
+    @Throttle(MIN_TIME_BETWEEN_API_UPDATES)
+    def update(self):
+        """Update function for updating api information."""
+        dt = datetime.now()
+        syncDate = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        self._sync_date = syncDate
+
+        if dt.hour > DEFAULT_START_HOUR and dt.hour < DEFAULT_END_HOUR:
+            self._isUpdate = True
+        else:
+            self._isUpdate = False
+
+        if len(self._update_time) > 0:
+            for item in self._update_time:
+                stt_tm = item['start_time']
+                end_tm = item['end_time']
+
+            self._isUpdate = isBetweenNowTime(stt_tm, end_tm)
+
+        import xmltodict
+        try:
+            url = SEOUL_BUS_API_URL.format(self._api_key, self._station_id)
+
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+
+            rows = xmltodict.parse(response.content.decode('utf8'))['ServiceResult']['msgBody']['itemList']
+
+            bus_dict = {}
+            for row in rows:
+                bus_dict[row[ATTR_ROUTE_ID]] = {
+                    'rtNm': row['rtNm'],
+                    'busRouteId': row['busRouteId'],
+                    'adirection': row['adirection'],
+                    'sectNm': row['sectNm'],
+
+                    'stNm':   row['stNm'],
+                    'arsId':  row['arsId'],
+                    'stId':   row['stId'],
+                    'staOrd': row['staOrd'],
+
+                    'vehId1':   row['vehId1'],
+                    'traTime1': row['traTime1'],
+                    'arrmsg1':  row['arrmsg1'],
+
+                    'vehId2':   row['vehId2'],
+                    'traTime2': row['traTime2'],
+                    'arrmsg2':  row['arrmsg2'],
+                    'syncDate': syncDate
+                }
+
+            self.result = bus_dict
+            #_LOGGER.debug('ChangwonBus API Request Result: %s', self.result)
+        except Exception as ex:
+            _LOGGER.error('Failed to update Seoul Bus API status Error: %s', ex)
+            raise
+
+# station sensor
+class BusStationSensor(Entity):
+    def __init__(self, id, name, icon, include_buses, exclude_buses, api):
+        self._station_id = id
+        self._station_name = name
+        self._include_buses = include_buses
+        self._exclude_buses = exclude_buses
+        self._api = api
+        self._icon = icon
+        self._state = None
+        self.buses = {}
+
+    @property
+    def entity_id(self):
+        """Return the entity ID."""
+        return 'sensor.seoul_bus_s{}'.format(self._station_id)
+
+    @property
+    def name(self):
+        """Return the name of the sensor, if any."""
+        if not self._station_name:
+            return 'St.{}'.format(self._station_id)
+        return '{}({})'.format(self._station_name, self._station_id)
+
+    @property
+    def icon(self):
+        """Icon to use in the frontend, if any."""
+        if not self._api._isUpdate:
+            return 'mdi:eye-off'
+
+        return self._icon
+
+    @property
+    def state(self):
+        """Return the state of the sensor."""
+        if not self._api._isUpdate:
+            return '-'
+
+        count = 0
+        for value in self.buses.values():
+            if value.get('vehId1', '0') != '0':
+                count += 1
+        return '운행종료' if count == 0 else '운행중'
+
+    @Throttle(MIN_TIME_BETWEEN_SENSOR_UPDATES)
+    def update(self):
+        """Get the latest state of the sensor."""
+        if self._api is None:
+            return
+
+        self._api.update()
+        buses_dict = self._api.result
+
+        for item in self._exclude_buses:
+            buses_dict.pop(item['bus_id'], {})
+
+        if not self._include_buses:
+            self.buses = buses_dict
+        else:
+            for item in self._include_buses:
+                bus = buses_dict.get(item['bus_id'], {})
+                self.buses[item['bus_id']] = bus
+
+    @property
+    def device_state_attributes(self):
+        """Attributes."""
+        attr = {}
+        attr['Sync Date'] = self._api._sync_date
+
+        for key in sorted(self.buses):
+            attr['{} [{}]'.format(self.buses[key].get('rtNm', key), self.buses[key].get('adirection', '-'))] = (self.buses[key].get('arrmsg1','-') if self.buses[key].get('vehId1','0')=='0' else '{} {}'.format(self.buses[key].get('traTime1', '0'), '초') ) 
+
+        return attr
+
+# bus sensor
+class BusSensor(Entity):
+    def __init__(self, station_id, station_name, bus_id, bus_name, values,  api):
+        self._station_id   = station_id
+        self._station_name = station_name
+        self._bus_id   = bus_id
+        self._bus_name = bus_name
+
+        self._api = api
+        self._view_type = api._view_type
+        self._state = None
+        self._data  = {}
+
+        self._rtNm = values['rtNm']
+        self._adirection = values['adirection']
+        self._sectNm = values['sectNm']
+
+        self._vehId1   = values['vehId1']
+        self._traTime1 = values['traTime1']
+        self._arrmsg1  = values['arrmsg1']
+
+        self._vehId2   = values['vehId2']
+        self._traTime2 = values['traTime2']
+        self._arrmsg2  = values['arrmsg2']
+
+    @property
+    def entity_id(self):
+        """Return the entity ID."""
+        return 'sensor.seoul_bus_{}_{}'.format(self._station_id, self._bus_id)
+
+    @property
+    def name(self):
+        """Return the name of the sensor, if any."""
+        station_name = self._station_name
+
+        if not self._station_name:
+            station_name = 'St.{}'.format(self._station_id)
+
+        if not self._bus_name:
+            return '{} {} [{}]'.format(station_name, self._rtNm, self._adirection )
+
+        return self._bus_name
+
+    @property
+    def icon(self):
+        """Icon to use in the frontend, if any."""
+        if not self._api._isUpdate:
+            return DEFAULT_BUS_READY_ICON
+
+        return DEFAULT_BUS_ALERT_ICON if (self._data['vehId1'] == '0' and self._data['vehId2'] == '0') else DEFAULT_BUS_ICON
+
+    @property
+    def unit_of_measurement(self):
+        """Return the unit the value is expressed in."""
+        if not self._api._isUpdate:
+            return ''
+
+        if self._view_type == 'S':
+            return '초'
+        else:
+            return ''
+
+    @property
+    def state(self):
+        """Return the state of the sensor."""
+        if not self._api._isUpdate:
+            return '-'
+
+        if self._view_type == 'S':
+            return self._data['traTime1']
+
+        if self._view_type == 'M':
+            return '0' if self._data['traTime1'] == '0' else second2min(self._data['traTime1'])
+
+        if self._view_type == 'A':
+            return self._data['arrmsg1']
+
+        return '-'
+
+    @Throttle(MIN_TIME_BETWEEN_SENSOR_UPDATES)
+    def update(self):
+        """Get the latest state of the sensor."""
+        if self._api is None:
+            return
+
+#        if  len(self._data) > 0 or self._api._isUpdate:
+#            self._api.update()
+
+        buses_dict = self._api.result
+        self._data = buses_dict.get(self._bus_id,{})
+
+        if not self._api._isUpdate:
+            self._data['vehId1']   = '0'
+            self._data['vehId2']   = '0'
+            self._data['traTime1'] = '0'
+            self._data['traTime2'] = '0'
+            self._data['arrmsg1']  = '-'
+            self._data['arrmsg2']  = '-'
+
+
+    @property
+    def device_state_attributes(self):
+        """Attributes."""
+        return { _BUS_PROPERTIES[key] : self._data[key] for key in self._data }
