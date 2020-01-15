@@ -6,6 +6,10 @@ Seoul Bus Sensor for Home Assistant 입니다.<br>
 ![screenshot_1](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_1.png?raw=true)<br>
 
 ![screenshot_2](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_2.png?raw=true)<br>
+[ 버스 센서 ]<br>
+![screenshot_4](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_4.png?raw=true)<br>
+[ API 센서 ]<br>
+![screenshot_5](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_5.png?raw=true)<br>
 
 <br><br>
 ## Version history
