@@ -1,6 +1,7 @@
 # Seoul Bus Sensor(서울버스)
 Seoul Bus Sensor for Home Assistant 입니다.<br>
 - 서울버스 도착정보를 알려줍니다.
+- 지정한 정류장에 도착예정인 버스를 확인할 수 있습니다.
 - 정류장, 버스, 그리고 API. 모두 세가지 센서로 구성됩니다. API 센서는 옵션입니다.
 
 ![screenshot_1](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_1.png?raw=true)<br>
