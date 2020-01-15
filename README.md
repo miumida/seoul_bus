@@ -3,6 +3,10 @@ Seoul Bus Sensor for Home Assistant 입니다.<br>
 - 서울버스 도착정보를 알려줍니다.
 - 정류장, 버스, 그리고 API. 모두 세가지 센서로 구성됩니다. API 센서는 옵션입니다.
 
+![screenshot_1](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_1.png?raw=true)<br>
+
+![screenshot_2](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_2.png?raw=true)<br>
+
 <br><br>
 ## Version history
 | Version | Date        |               |
@@ -73,7 +77,9 @@ sensor:
 
 ### 정류장 고유번호(station_id) 값 확인
 - station_id는 정류장 고유번호입니다.
+- 서울 버스도착정보 - 버스노선 사이트(http://bus.go.kr/searchResult6.jsp)에 접속하여 정류장을 조회하여 정류소번호를 확인합니다.
 
+![screenshot_3](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_3.png?raw=true)<br>
 <br>
 
 ### view_type 설정값
