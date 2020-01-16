@@ -18,13 +18,14 @@ _LOGGER = logging.getLogger(__name__)
 
 # configuration value
 CONF_API_ISSUED_DATE = 'api_issued_date'
-CONF_STATIONS = 'stations'
+
+CONF_STATIONS   = 'stations'
 CONF_STATION_ID = 'station_id'
 CONF_STATION_INCLUDE_BUSES = 'include_buses'
 CONF_STATION_EXCLUDE_BUSES = 'exclude_buses'
 CONF_STATION_UPDATE_TIME = 'update_time'
 CONF_START_TIME = 'start_time'
-CONF_END_TIME = 'end_time'
+CONF_END_TIME   = 'end_time'
 CONF_BUS_ID = 'bus_id'
 CONF_VIEW_TYPE = 'view_type'
 
@@ -61,10 +62,13 @@ DEFAULT_STATION_NAME = 'Station'
 DEFAULT_VIEW_TYPE = 'S'
 
 # default icon
-DEFAULT_STATION_ICON   = 'mdi:nature-people'
-DEFAULT_BUS_ICON       = 'mdi:bus'
-DEFAULT_BUS_READY_ICON = 'mdi:bus-clock'
-DEFAULT_BUS_ALERT_ICON = 'mdi:bus-alert'
+ICON_STATION      = 'mdi:nature-people'
+ICON_BUS          = 'mdi:bus'
+ICON_BUS_READY    = 'mdi:bus-clock'
+ICON_BUS_ALERT    = 'mdi:bus-alert'
+
+ICON_SIGN_CAUTION = 'mdi:sign-caution'
+ICON_EYE_OFF      = 'mdi:eye-off'
 
 # default_time
 DEFAULT_START_HOUR = 3
@@ -72,8 +76,11 @@ DEFAULT_END_HOUR   = 24
 
 # update time
 MIN_TIME_BETWEEN_API_UPDATES    = timedelta(seconds=120) #
-MIN_TIME_BETWEEN_SENSOR_UPDATES = timedelta(seconds=60) #
+
 MIN_TIME_BETWEEN_API_SENSOR_UPDATES = timedelta(seconds=3600)
+
+MIN_TIME_BETWEEN_STATION_SENSOR_UPDATES = timedelta(seconds=120) #
+MIN_TIME_BETWEEN_BUS_SENSOR_UPDATES = timedelta(seconds=10)
 
 # attribute value
 ATTR_ROUTE_ID = 'busRouteId'
@@ -84,7 +91,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_STATIONS): vol.All(cv.ensure_list, [{
         vol.Required(CONF_STATION_ID): cv.string,
         vol.Optional(CONF_NAME, default = DEFAULT_STATION_NAME): cv.string,
-        vol.Optional(CONF_ICON, default = DEFAULT_STATION_ICON): cv.string,
         vol.Optional(CONF_STATION_UPDATE_TIME, default=[]): vol.All(cv.ensure_list, [{
             vol.Required(CONF_START_TIME, default = ''): cv.string,
             vol.Required(CONF_END_TIME, default =''): cv.string,
@@ -99,6 +105,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_VIEW_TYPE, default = DEFAULT_VIEW_TYPE): cv.string,
 })
 
+# 현재시간이 두시간 사이구간에 존재하는지 체크
 def isBetweenNowTime(start, end):
     rtn = False
 
@@ -123,19 +130,23 @@ def isBetweenNowTime(start, end):
         else:
             rtn = False
     except Excption as ex:
-        _LOGGER.error('Failed to isTime()  Error: %s', ex)
+        _LOGGER.error('Failed to isBetweenNowTime() Seoul Bus Method Error: %s', ex)
 
     return rtn
 
 # 초를 분으로 변환
 def second2min(val):
+    try:
+        if 60 >  int(val):
+            return '{}초'.format(val)
+        else:
+            min = math.floor(int(val)/60)
+            sec = int(val)%60
+            return '{}분{}초'.format(str(min), str(sec))
+    except Exception as ex:
+        _LOGGER.error('Failed to second2min() Seoul Bus Method Error: %s', ex)
 
-    if 60 >  int(val):
-        return '{}초'.format(val)
-    else:
-        min = math.floor(int(val)/60)
-        sec = int(val)%60
-        return '{}분{}초'.format(str(min), str(sec))
+    return val
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -156,13 +167,16 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         api = SeoulBusAPI(api_key, station[CONF_STATION_ID], station[CONF_STATION_UPDATE_TIME], view_type)
 
         # station sensor add
-        sensor = BusStationSensor(station[CONF_STATION_ID], station[CONF_NAME], station[CONF_ICON], station[CONF_STATION_INCLUDE_BUSES], station[CONF_STATION_EXCLUDE_BUSES], api)
+        sensor = BusStationSensor(station[CONF_STATION_ID], station[CONF_NAME], station[CONF_STATION_INCLUDE_BUSES], station[CONF_STATION_EXCLUDE_BUSES], api)
         sensor.update()
         sensors += [sensor]
 
         # bus sensor add
         for bus_id, value in sensor.buses.items():
-            sensors += [BusSensor(station[CONF_STATION_ID], station[CONF_NAME], bus_id, value.get(CONF_NAME, ''), value, api)]
+            try:
+                sensors += [BusSensor(station[CONF_STATION_ID], station[CONF_NAME], bus_id, value.get(CONF_NAME, ''), value, api)]
+            except Exception as ex:
+                _LOGGER.error('[Seoul Bus] Failed to BusSensor add  Error: %s', ex)
 
     add_entities(sensors, True)
 
@@ -224,11 +238,15 @@ class SeoulBusAPI:
         self._station_id  = station_id
         self._update_time = update_time
         self._isUpdate  = True
+
+        self._isError   = False
+        self._errorCd   = None
+        self._errorMsg  = None
+
         self._view_type = view_type
         self._sync_date = None
         self.result = {}
 
-    @Throttle(MIN_TIME_BETWEEN_API_UPDATES)
     def update(self):
         """Update function for updating api information."""
         dt = datetime.now()
@@ -255,48 +273,66 @@ class SeoulBusAPI:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
 
-            rows = xmltodict.parse(response.content.decode('utf8'))['ServiceResult']['msgBody']['itemList']
+            page = response.content.decode('utf8')
+
+            hdr = xmltodict.parse(page)['ServiceResult']['msgHeader']
 
             bus_dict = {}
-            for row in rows:
-                bus_dict[row[ATTR_ROUTE_ID]] = {
-                    'rtNm': row['rtNm'],
-                    'busRouteId': row['busRouteId'],
-                    'adirection': row['adirection'],
-                    'sectNm': row['sectNm'],
 
-                    'stNm':   row['stNm'],
-                    'arsId':  row['arsId'],
-                    'stId':   row['stId'],
-                    'staOrd': row['staOrd'],
+            if ( hdr['headerCd'] != '0'):
+                self._isError = True
 
-                    'vehId1':   row['vehId1'],
-                    'traTime1': row['traTime1'],
-                    'arrmsg1':  row['arrmsg1'],
+                self._errorCd = hdr['headerCd']
+                self._errorMsg = hdr['headerMsg']
 
-                    'vehId2':   row['vehId2'],
-                    'traTime2': row['traTime2'],
-                    'arrmsg2':  row['arrmsg2'],
-                    'syncDate': syncDate
-                }
+                _LOGGER.error('Failed to update Seoul Bus API status Error: %s', hdr['headerMsg'] )
+            else:
+                self._isError = False
+                self._errorCd = None
+                self._errorMsg = None
+
+                rows = xmltodict.parse(page)['ServiceResult']['msgBody']['itemList']
+
+                for row in rows:
+                    bus_dict[row[ATTR_ROUTE_ID]] = {
+                        'rtNm': row['rtNm'],
+                        'busRouteId': row['busRouteId'],
+                        'adirection': row['adirection'],
+                        'sectNm': row['sectNm'],
+
+                        'stNm':   row['stNm'],
+                        'arsId':  row['arsId'],
+                        'stId':   row['stId'],
+                        'staOrd': row['staOrd'],
+
+                        'vehId1':   row['vehId1'],
+                        'traTime1': row['traTime1'],
+                        'arrmsg1':  row['arrmsg1'],
+
+                        'vehId2':   row['vehId2'],
+                        'traTime2': row['traTime2'],
+                        'arrmsg2':  row['arrmsg2'],
+                        'syncDate': syncDate
+                    }
 
             self.result = bus_dict
-            #_LOGGER.debug('ChangwonBus API Request Result: %s', self.result)
+            #_LOGGER.debug('Seoul Bus API Request Result: %s', self.result)
         except Exception as ex:
             _LOGGER.error('Failed to update Seoul Bus API status Error: %s', ex)
             raise
 
 # station sensor
 class BusStationSensor(Entity):
-    def __init__(self, id, name, icon, include_buses, exclude_buses, api):
+    def __init__(self, id, name, include_buses, exclude_buses, api):
         self._station_id = id
         self._station_name = name
         self._include_buses = include_buses
         self._exclude_buses = exclude_buses
-        self._api = api
-        self._icon = icon
+
+        self._api   = api
+        self._icon  = ICON_STATION
         self._state = None
-        self.buses = {}
+        self.buses  = {}
 
     @property
     def entity_id(self):
@@ -313,14 +349,20 @@ class BusStationSensor(Entity):
     @property
     def icon(self):
         """Icon to use in the frontend, if any."""
+        if self._api._isError:
+            return ICON_SIGN_CAUTION
+
         if not self._api._isUpdate:
-            return 'mdi:eye-off'
+            return ICON_EYE_OFF
 
         return self._icon
 
     @property
     def state(self):
         """Return the state of the sensor."""
+        if self._api._isError:
+            return 'Error'
+
         if not self._api._isUpdate:
             return '-'
 
@@ -330,7 +372,7 @@ class BusStationSensor(Entity):
                 count += 1
         return '운행종료' if count == 0 else '운행중'
 
-    @Throttle(MIN_TIME_BETWEEN_SENSOR_UPDATES)
+    @Throttle(MIN_TIME_BETWEEN_STATION_SENSOR_UPDATES)
     def update(self):
         """Get the latest state of the sensor."""
         if self._api is None:
@@ -353,6 +395,12 @@ class BusStationSensor(Entity):
     def device_state_attributes(self):
         """Attributes."""
         attr = {}
+
+        # API Error Contents Attributes Add
+        if self._api._isError :
+            attr['API Error Code'] = self._api._errorCd
+            attr['API Error Msg'] = self._api._errorMsg
+
         attr['Sync Date'] = self._api._sync_date
 
         for key in sorted(self.buses):
@@ -407,9 +455,9 @@ class BusSensor(Entity):
     def icon(self):
         """Icon to use in the frontend, if any."""
         if not self._api._isUpdate:
-            return DEFAULT_BUS_READY_ICON
+            return ICON_BUS_READY
 
-        return DEFAULT_BUS_ALERT_ICON if (self._data['vehId1'] == '0' and self._data['vehId2'] == '0') else DEFAULT_BUS_ICON
+        return ICON_BUS_ALERT if (self._data['vehId1'] == '0' and self._data['vehId2'] == '0') else ICON_BUS
 
     @property
     def unit_of_measurement(self):
@@ -439,7 +487,7 @@ class BusSensor(Entity):
 
         return '-'
 
-    @Throttle(MIN_TIME_BETWEEN_SENSOR_UPDATES)
+    @Throttle(MIN_TIME_BETWEEN_BUS_SENSOR_UPDATES)
     def update(self):
         """Get the latest state of the sensor."""
         if self._api is None:
