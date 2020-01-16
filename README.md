@@ -14,10 +14,10 @@ Seoul Bus Sensor for Home Assistant 입니다.<br>
 
 <br><br>
 ## Version history
-| Version | Date        |               |
-| :-----: | :---------: | ------------- |
+| Version | Date        | 내용              |
+| :-----: | :---------: | ----------------------- |
 | v1.0    | 2020.01.15  | First version  |
-| v1.1    | 2020.01.16  | Exception 처리 추가. API 오류코드 리턴시, 정류장센서에 API오류   |
+| v1.1    | 2020.01.16  | Exception 처리 추가. API 오류코드/메세지 표시  |
 
 <br>
 
