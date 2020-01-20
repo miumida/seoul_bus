@@ -148,6 +148,15 @@ def second2min(val):
 
     return val
 
+#xml2dict 문제 처리를 위함
+def cover_list(dict):
+    if not dict:
+        return []
+    elif isinstance(dict, list):
+        return dict
+    else:
+        return [dict]
+
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     name = config.get(CONF_NAME)
@@ -293,7 +302,7 @@ class SeoulBusAPI:
 
                 rows = xmltodict.parse(page)['ServiceResult']['msgBody']['itemList']
 
-                for row in rows:
+                for row in cover_list(rows):
                     bus_dict[row[ATTR_ROUTE_ID]] = {
                         'rtNm': row['rtNm'],
                         'busRouteId': row['busRouteId'],
@@ -378,7 +387,9 @@ class BusStationSensor(Entity):
         if self._api is None:
             return
 
-        self._api.update()
+        if self._api._isUpdate:
+            self._api.update()
+
         buses_dict = self._api.result
 
         for item in self._exclude_buses:
@@ -401,10 +412,10 @@ class BusStationSensor(Entity):
             attr['API Error Code'] = self._api._errorCd
             attr['API Error Msg'] = self._api._errorMsg
 
-        attr['Sync Date'] = self._api._sync_date
-
         for key in sorted(self.buses):
             attr['{} [{}]'.format(self.buses[key].get('rtNm', key), self.buses[key].get('adirection', '-'))] = (self.buses[key].get('arrmsg1','-') if self.buses[key].get('vehId1','0')=='0' else '{} {}'.format(self.buses[key].get('traTime1', '0'), '초') ) 
+
+        attr['Sync Date'] = self._api._sync_date
 
         return attr
 
@@ -492,9 +503,6 @@ class BusSensor(Entity):
         """Get the latest state of the sensor."""
         if self._api is None:
             return
-
-#        if  len(self._data) > 0 or self._api._isUpdate:
-#            self._api.update()
 
         buses_dict = self._api.result
         self._data = buses_dict.get(self._bus_id,{})
