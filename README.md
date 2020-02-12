@@ -71,7 +71,7 @@ sensor:
 <br>
 
 ### API KEY 발급
-공공데이터포털에서 정류소정보조회 서비스(https://www.data.go.kr/dataset/15000303/openapi.do)를 발급신청하여 인증키를 발급받습니다.
+공공데이터포털에서 정류소정보조회 서비스(<https://www.data.go.kr/dataset/15000303/openapi.do>)를 발급신청하여 인증키를 발급받습니다.
 
 <br>
 
@@ -89,7 +89,7 @@ sensor:
 
 ### 정류장 고유번호(station_id) 값 확인
 - station_id는 정류장 고유번호입니다.
-- 서울 버스도착정보 - 버스노선 사이트(http://bus.go.kr/searchResult6.jsp)에 접속하여 정류장을 조회하여 ```정류소번호```를 확인합니다.
+- 서울 버스도착정보 - 버스노선 사이트(<http://bus.go.kr/searchResult6.jsp>)에 접속하여 정류장을 조회하여 ```정류소번호```를 확인합니다.
 
 ![screenshot_3](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_3.png?raw=true)<br>
 <br>
@@ -114,3 +114,9 @@ sensor:
 - 'HH:MM'와 같은 포맷으로 입력 필요.(24시간 체계)
 - start_time은 end_time보다 이전 시간이여야 함.
 - update_time을 설정하지 않는 경우, 4:00 ~ 23:59 구간에 버스정보를 갱신
+
+<br>
+
+### include_buses/exclude_buses 버스id(노선id)설정값
+- include_buses/exclude_buses의 버스id(노선id)를 입력하여 설정한다.
+- 서울특별시 버스노선 기본정보 항목정보(<http://data.seoul.go.kr/dataList/OA-15262/F/1/datasetView.do>)에서 버스노스id를 확인하여 입력한다.
