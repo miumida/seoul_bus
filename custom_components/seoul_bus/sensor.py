@@ -387,8 +387,7 @@ class BusStationSensor(Entity):
         if self._api is None:
             return
 
-        if self._api._isUpdate:
-            self._api.update()
+        self._api.update()
 
         buses_dict = self._api.result
 
