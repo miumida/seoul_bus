@@ -1,4 +1,8 @@
 # Seoul Bus Sensor(서울버스)
+
+![HAKC)][hakc-shield]
+![Version v1.2][version-shield]
+
 Seoul Bus Sensor for Home Assistant 입니다.<br>
 - 서울버스 도착정보를 알려줍니다.
 - 지정한 정류장에 도착예정인 버스를 확인할 수 있습니다.
@@ -120,3 +124,12 @@ sensor:
 ### include_buses/exclude_buses 버스id(노선id)설정값
 - include_buses/exclude_buses의 버스id(노선id)를 입력하여 설정한다.
 - 서울특별시 버스노선 기본정보 항목정보(<http://data.seoul.go.kr/dataList/OA-15262/F/1/datasetView.do>)에서 버스노스id를 확인하여 입력한다.
+
+<br>
+
+## 참고사이트
+[1]서울 버스도착정보 - 버스노선 사이트(<http://bus.go.kr/searchResult6.jsp>)<br>
+[2]서울특별시 버스노선 기본정보 항목정보(<http://data.seoul.go.kr/dataList/OA-15262/F/1/datasetView.do>)
+
+[version-shield]: https://img.shields.io/badge/version-v1.2-orange.svg
+[hakc-shield]: https://img.shields.io/badge/HAKC-Enjoy-blue.svg
