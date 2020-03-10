@@ -1,6 +1,7 @@
 # Seoul Bus Sensor(서울버스)
 
 ![HAKC)][hakc-shield]
+![HACS][hacs-shield]
 ![Version v1.2][version-shield]
 
 Seoul Bus Sensor for Home Assistant 입니다.<br>
@@ -27,6 +28,7 @@ Seoul Bus Sensor for Home Assistant 입니다.<br>
 <br>
 
 ## Installation
+### Manual
 - HA 설치 경로 아래 custom_components 에 파일을 넣어줍니다.<br>
   `<config directory>/custom_components/seoul_bus/__init__.py`<br>
   `<config directory>/custom_components/seoul_bus/manifest.json`<br>
@@ -133,3 +135,4 @@ sensor:
 
 [version-shield]: https://img.shields.io/badge/version-v1.2-orange.svg
 [hakc-shield]: https://img.shields.io/badge/HAKC-Enjoy-blue.svg
+[hacs-shield]: https://img.shields.io/badge/HACS-Custom-red.svg
