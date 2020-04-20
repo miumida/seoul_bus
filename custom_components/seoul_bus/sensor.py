@@ -53,7 +53,8 @@ _BUS_PROPERTIES = {
     'arrmsg2': '가까운버스2 메세지',
     'syncDate': 'Sync Date',
     'start_time': '시작시간',
-    'end_time': '종료시간'
+    'end_time': '종료시간',
+    'isUpdate': 'is Update'
 }
 
 # default value
@@ -79,7 +80,7 @@ MIN_TIME_BETWEEN_API_UPDATES    = timedelta(seconds=120) #
 
 MIN_TIME_BETWEEN_API_SENSOR_UPDATES = timedelta(seconds=3600)
 
-MIN_TIME_BETWEEN_STATION_SENSOR_UPDATES = timedelta(seconds=120) #
+MIN_TIME_BETWEEN_STATION_SENSOR_UPDATES = timedelta(seconds=90) #
 MIN_TIME_BETWEEN_BUS_SENSOR_UPDATES = timedelta(seconds=10)
 
 # attribute value
@@ -176,14 +177,14 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         api = SeoulBusAPI(api_key, station[CONF_STATION_ID], station[CONF_STATION_UPDATE_TIME], view_type)
 
         # station sensor add
-        sensor = BusStationSensor(station[CONF_STATION_ID], station[CONF_NAME], station[CONF_STATION_INCLUDE_BUSES], station[CONF_STATION_EXCLUDE_BUSES], api)
+        sensor = BusStationSensor(station[CONF_STATION_ID], station[CONF_NAME], station[CONF_STATION_INCLUDE_BUSES], station[CONF_STATION_EXCLUDE_BUSES], station[CONF_STATION_UPDATE_TIME], api)
         sensor.update()
         sensors += [sensor]
 
         # bus sensor add
         for bus_id, value in sensor.buses.items():
             try:
-                sensors += [BusSensor(station[CONF_STATION_ID], station[CONF_NAME], bus_id, value.get(CONF_NAME, ''), value, api)]
+                sensors += [BusSensor(station[CONF_STATION_ID], station[CONF_NAME], station[CONF_STATION_UPDATE_TIME], bus_id, value.get(CONF_NAME, ''), value, api)]
             except Exception as ex:
                 _LOGGER.error('[Seoul Bus] Failed to BusSensor add  Error: %s', ex)
 
@@ -321,7 +322,8 @@ class SeoulBusAPI:
                         'vehId2':   row['vehId2'],
                         'traTime2': row['traTime2'],
                         'arrmsg2':  row['arrmsg2'],
-                        'syncDate': syncDate
+                        'syncDate': syncDate,
+                        'isUpdate': self._isUpdate
                     }
 
             self.result = bus_dict
@@ -332,11 +334,17 @@ class SeoulBusAPI:
 
 # station sensor
 class BusStationSensor(Entity):
-    def __init__(self, id, name, include_buses, exclude_buses, api):
+    def __init__(self, id, name, include_buses, exclude_buses, update_time, api):
         self._station_id = id
         self._station_name = name
         self._include_buses = include_buses
         self._exclude_buses = exclude_buses
+        self._update_time   = update_time
+        self._isUpdate = None
+        self._stt_time = None
+        self._end_time = None
+
+        self._sync_date = None
 
         self._api   = api
         self._icon  = ICON_STATION
@@ -361,6 +369,9 @@ class BusStationSensor(Entity):
         if self._api._isError:
             return ICON_SIGN_CAUTION
 
+        if not self._isUpdate:
+            return ICON_EYE_OFF
+
         if not self._api._isUpdate:
             return ICON_EYE_OFF
 
@@ -372,7 +383,10 @@ class BusStationSensor(Entity):
         if self._api._isError:
             return 'Error'
 
-        if not self._api._isUpdate:
+        if not self._isUpdate:
+            return '-'
+
+        if not self._isUpdate:
             return '-'
 
         count = 0
@@ -387,7 +401,29 @@ class BusStationSensor(Entity):
         if self._api is None:
             return
 
-        self._api.update()
+        if self._isUpdate is None:
+            self._api.update()
+
+        dt = datetime.now()
+        syncDate = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        self._sync_date = syncDate
+
+        if len(self._update_time) > 0:
+            stt_tm = None
+            end_tm = None
+
+            for item in self._update_time:
+                stt_tm = item['start_time']
+                end_tm = item['end_time']
+
+                self._stt_time = stt_tm
+                self._end_time = end_tm
+
+            self._isUpdate = isBetweenNowTime(stt_tm, end_tm)
+
+        if self._isUpdate:
+            self._api.update()
 
         buses_dict = self._api.result
 
@@ -414,17 +450,25 @@ class BusStationSensor(Entity):
         for key in sorted(self.buses):
             attr['{} [{}]'.format(self.buses[key].get('rtNm', key), self.buses[key].get('adirection', '-'))] = (self.buses[key].get('arrmsg1','-') if self.buses[key].get('vehId1','0')=='0' else '{} {}'.format(self.buses[key].get('traTime1', '0'), '초') ) 
 
-        attr['Sync Date'] = self._api._sync_date
+        attr['Sync Date'] = self._sync_date
+        attr['is Update'] = self._isUpdate
+        attr['start time'] = self._stt_time
+        attr['end time']   = self._end_time
 
         return attr
 
 # bus sensor
 class BusSensor(Entity):
-    def __init__(self, station_id, station_name, bus_id, bus_name, values,  api):
+    def __init__(self, station_id, station_name, station_update_time, bus_id, bus_name, values,  api):
         self._station_id   = station_id
         self._station_name = station_name
+        self._station_update_time = station_update_time
         self._bus_id   = bus_id
         self._bus_name = bus_name
+
+        self._isUpdate = None
+        self._stt_time = None
+        self._end_time = None
 
         self._api = api
         self._view_type = api._view_type
@@ -464,7 +508,7 @@ class BusSensor(Entity):
     @property
     def icon(self):
         """Icon to use in the frontend, if any."""
-        if not self._api._isUpdate:
+        if not self._isUpdate:
             return ICON_BUS_READY
 
         return ICON_BUS_ALERT if (self._data['vehId1'] == '0' and self._data['vehId2'] == '0') else ICON_BUS
@@ -472,7 +516,7 @@ class BusSensor(Entity):
     @property
     def unit_of_measurement(self):
         """Return the unit the value is expressed in."""
-        if not self._api._isUpdate:
+        if not self._isUpdate:
             return ''
 
         if self._view_type == 'S':
@@ -483,7 +527,7 @@ class BusSensor(Entity):
     @property
     def state(self):
         """Return the state of the sensor."""
-        if not self._api._isUpdate:
+        if not self._isUpdate:
             return '-'
 
         if self._view_type == 'S':
@@ -503,10 +547,29 @@ class BusSensor(Entity):
         if self._api is None:
             return
 
+        dt = datetime.now()
+        syncDate = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        self._sync_date = syncDate
+
+
+        if len(self._station_update_time) > 0:
+            stt_tm = None
+            end_tm = None
+
+            for item in self._station_update_time:
+                stt_tm = item['start_time']
+                end_tm = item['end_time']
+
+                self._stt_time = stt_tm
+                self._end_time = end_tm
+
+            self._isUpdate = isBetweenNowTime(stt_tm, end_tm)
+
         buses_dict = self._api.result
         self._data = buses_dict.get(self._bus_id,{})
 
-        if not self._api._isUpdate:
+        if not self._isUpdate:
             self._data['vehId1']   = '0'
             self._data['vehId2']   = '0'
             self._data['traTime1'] = '0'
@@ -518,4 +581,15 @@ class BusSensor(Entity):
     @property
     def device_state_attributes(self):
         """Attributes."""
-        return { _BUS_PROPERTIES[key] : self._data[key] for key in self._data }
+        attr = {}
+
+        for key in self._data:
+           attr[key] = self._data[key]
+
+        attr['syncDate'] = self._sync_date
+
+        attr['isUpdate']   = self._isUpdate
+        attr['start time'] = self._stt_time
+        attr['end time']   = self._end_time
+
+        return attr
