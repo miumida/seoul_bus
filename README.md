@@ -2,7 +2,7 @@
 
 ![HAKC)][hakc-shield]
 ![HACS][hacs-shield]
-![Version v1.2][version-shield]
+![Version v1.3][version-shield]
 
 Seoul Bus Sensor for Home Assistant 입니다.<br>
 - 서울버스 도착정보를 알려줍니다.
@@ -134,6 +134,6 @@ sensor:
 [1]서울 버스도착정보 - 버스노선 사이트(<http://bus.go.kr/searchResult6.jsp>)<br>
 [2]서울특별시 버스노선 기본정보 항목정보(<http://data.seoul.go.kr/dataList/OA-15262/F/1/datasetView.do>)
 
-[version-shield]: https://img.shields.io/badge/version-v1.2-orange.svg
+[version-shield]: https://img.shields.io/badge/version-v1.3-orange.svg
 [hakc-shield]: https://img.shields.io/badge/HAKC-Enjoy-blue.svg
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-red.svg
