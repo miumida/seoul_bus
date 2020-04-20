@@ -24,6 +24,7 @@ Seoul Bus Sensor for Home Assistant 입니다.<br>
 | v1.0    | 2020.01.15  | First version  |
 | v1.1    | 2020.01.16  | Exception 처리 추가. API 오류코드/메세지 표시  |
 | v1.2    | 2020.01.20  | xml2dict 문제점 보완. 정류장센서 update_time 구간만 상태반영  |
+| v1.3    | 2020.04.21  | 정류장/버스센서 update_time 구간 상태반영 수정.  |
 
 <br>
 
