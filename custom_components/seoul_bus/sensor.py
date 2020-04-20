@@ -584,12 +584,12 @@ class BusSensor(Entity):
         attr = {}
 
         for key in self._data:
-           attr[key] = self._data[key]
+           attr[_BUS_PROPERTIES[key]] = self._data[key]
 
-        attr['syncDate'] = self._sync_date
+        attr[_BUS_PROPERTIES['syncDate']] = self._sync_date
 
-        attr['isUpdate']   = self._isUpdate
-        attr['start time'] = self._stt_time
-        attr['end time']   = self._end_time
+        attr[_BUS_PROPERTIES['isUpdate']]   = self._isUpdate
+        attr[_BUS_PROPERTIES['start_time']] = self._stt_time
+        attr[_BUS_PROPERTIES['end_time']]   = self._end_time
 
         return attr
