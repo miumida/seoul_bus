@@ -6,5 +6,6 @@
   "dependencies": [],
   "codeowners": [
     "@miumida"
-  ]
+  ],
+  "iot_class": "cloud_polling"
 }
