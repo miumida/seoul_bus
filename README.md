@@ -26,6 +26,7 @@ Seoul Bus Sensor for Home Assistant 입니다.<br>
 | v1.2    | 2020.01.20  | xml2dict 문제점 보완. 정류장센서 update_time 구간만 상태반영  |
 | v1.3    | 2020.04.21  | 정류장/버스센서 update_time 구간 상태반영 수정.  |
 | v1.4    | 2020.04.21  | 버스센서 속성명 변경  |
+| v1.4    | 2021.10.24  | manifest.json add version info  |
 
 <br>
 
@@ -135,6 +136,6 @@ sensor:
 [1]서울 버스도착정보 - 버스노선 사이트(<http://bus.go.kr/searchResult6.jsp>)<br>
 [2]서울특별시 버스노선 기본정보 항목정보(<http://data.seoul.go.kr/dataList/OA-15262/F/1/datasetView.do>)
 
-[version-shield]: https://img.shields.io/badge/version-v1.4-orange.svg
+[version-shield]: https://img.shields.io/badge/version-v1.4.1-orange.svg
 [hakc-shield]: https://img.shields.io/badge/HAKC-Enjoy-blue.svg
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-red.svg
