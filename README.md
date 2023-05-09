@@ -80,7 +80,7 @@ sensor:
 <br>
 
 ### API KEY 발급
-공공데이터포털에서 정류소정보조회 서비스(<https://www.data.go.kr/data/15000314/openapi.do>)를 발급신청하여 인증키를 발급받습니다.
+공공데이터포털에서 정류소정보조회 서비스(<https://www.data.go.kr/data/15000303/openapi.do>)를 발급신청하여 인증키를 발급받습니다.
 
 <br>
 
