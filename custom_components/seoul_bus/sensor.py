@@ -30,7 +30,7 @@ CONF_BUS_ID = 'bus_id'
 CONF_VIEW_TYPE = 'view_type'
 
 # seoul bus api url
-SEOUL_BUS_API_URL = 'http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={}&arsId={}'
+SEOUL_BUS_API_URL = 'http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?serviceKey={}&arsId={}'
 
 # bus properties dict
 _BUS_PROPERTIES = {
