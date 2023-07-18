@@ -30,7 +30,7 @@ CONF_BUS_ID = 'bus_id'
 CONF_VIEW_TYPE = 'view_type'
 
 # seoul bus api url
-SEOUL_BUS_API_URL = 'http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?serviceKey={}&arsId={}'
+SEOUL_BUS_API_URL = 'http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={}&arsId={}'
 
 # bus properties dict
 _BUS_PROPERTIES = {
@@ -233,7 +233,7 @@ class apiSensor(Entity):
         return '일 후 만료'
 
     @property
-    def device_state_attributes(self):
+    def state_attributes(self):
         """Attributes."""
         data = { 'API발급일' : self._issued_date,
                  '만료까지' : self._dday  }
@@ -438,7 +438,7 @@ class BusStationSensor(Entity):
                 self.buses[item['bus_id']] = bus
 
     @property
-    def device_state_attributes(self):
+    def state_attributes(self):
         """Attributes."""
         attr = {}
 
@@ -579,7 +579,7 @@ class BusSensor(Entity):
 
 
     @property
-    def device_state_attributes(self):
+    def state_attributes(self):
         """Attributes."""
         attr = {}
 
