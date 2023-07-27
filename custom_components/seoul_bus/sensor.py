@@ -233,7 +233,7 @@ class apiSensor(Entity):
         return '일 후 만료'
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Attributes."""
         data = { 'API발급일' : self._issued_date,
                  '만료까지' : self._dday  }
@@ -438,7 +438,7 @@ class BusStationSensor(Entity):
                 self.buses[item['bus_id']] = bus
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Attributes."""
         attr = {}
 
