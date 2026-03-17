@@ -24,7 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             is_waiting = True
 
         if is_waiting:
-            # 기존 데이터를 유지하거나 구조를 넘겨주어 엔티티 사라짐 방지
+            # 기존 데이터를 유지하거나 빈 리스트 구조를 반환하여 센서 삭제를 방지
             prev_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
             return {"status": "waiting", "items": prev_items}
 
@@ -39,7 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                         res = items if isinstance(items, list) else ([items] if items else [])
                         return {"status": "active", "items": res}
         except Exception as err:
-            raise UpdateFailed(f"API 호출 에러: {err}")
+            raise UpdateFailed(f"API Error: {err}")
 
     coordinator = DataUpdateCoordinator(
         hass, _LOGGER, name=f"{DOMAIN}_{entry.data[CONF_STATION_ID]}",
@@ -50,6 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     entry.async_on_unload(entry.add_update_listener(lambda h, e: h.config_entries.async_reload(e.entry_id)))
+    # 최신 규격 적용
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     return True
 
