@@ -24,7 +24,7 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_STATION_ID): str,
                 vol.Optional("include_buses", default=""): str,
                 vol.Optional(CONF_API_ISSUED_DATE): str,
-                # 초 단위를 제외한 시:분 형식 적용
+                # 초 단위를 제거한 시:분 선택기 UI
                 vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector(
                     selector.TimeSelectorConfig(format="hh:mm")
                 ),
