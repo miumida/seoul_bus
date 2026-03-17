@@ -17,6 +17,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     include_targets = [x.strip() for x in include_str.split(",")] if include_str else []
     
     current_unique_ids = []
+    ent_reg = er.async_get(hass) # 엔티티 레지스트리 가져오기
     
     status_id = f"{DOMAIN}_{station_id}_status_sensor"
     update_id = f"{DOMAIN}_{station_id}_last_update_sensor"
@@ -29,15 +30,21 @@ async def async_setup_entry(hass, entry, async_add_entities):
     
     added_bus_ids = set()
 
-    # 1. 설정된 버스 목록 기반 생성
+    # 버스 센서 생성 로직
     for bus_id in include_targets:
         bus_unique_id = f"{DOMAIN}_{station_id}_{bus_id}_bus_sensor"
         if bus_unique_id not in added_bus_ids:
-            entities.append(SeoulBusSensor(coordinator, entry, None, station_id, station_name, bus_unique_id, bus_id))
+            # [핵심] 레지스트리에서 기존에 저장된 이름이 있는지 확인
+            existing_entry = ent_reg.async_get_unique_id(bus_unique_id)
+            last_known_nm = None
+            if existing_entry and existing_entry.original_name:
+                # "2230 (중랑구청)" 형태에서 "2230"만 추출 시도
+                last_known_nm = existing_entry.original_name.split(" (")[0]
+
+            entities.append(SeoulBusSensor(coordinator, entry, None, station_id, station_name, bus_unique_id, bus_id, last_known_nm))
             current_unique_ids.append(bus_unique_id)
             added_bus_ids.add(bus_unique_id)
 
-    # 2. 설정이 없을 때 API 응답 기반 생성
     if not include_targets and coordinator.data and "items" in coordinator.data:
         for item in coordinator.data["items"]:
             bus_route_id = item.get("busRouteId")
@@ -47,8 +54,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 current_unique_ids.append(bus_unique_id)
                 added_bus_ids.add(bus_unique_id)
 
-    # 3. 불필요 엔티티 자동 삭제
-    ent_reg = er.async_get(hass)
+    # 불필요 엔티티 삭제
     registered_entities = er.async_entries_for_config_entry(ent_reg, entry.entry_id)
     for entity_entry in registered_entities:
         if entity_entry.unique_id not in current_unique_ids:
@@ -95,28 +101,28 @@ class SeoulBusLastUpdateSensor(SeoulBusBase, SensorEntity):
         return getattr(self.coordinator, "last_update_success_time", None)
 
 class SeoulBusSensor(SeoulBusBase, SensorEntity):
-    def __init__(self, coordinator, entry, item, station_id, station_name, unique_id, bus_route_id):
+    def __init__(self, coordinator, entry, item, station_id, station_name, unique_id, bus_route_id, last_known_nm=None):
         super().__init__(coordinator, entry, station_id, station_name)
         self._bus_route_id = bus_route_id
-        # 초기 이름 설정: item이 있으면 노선명, 없으면 ID
-        self._rt_nm = item.get("rtNm") if item else None
+        # 1. API 데이터가 있으면 rtNm 사용
+        # 2. 없으면 레지스트리에서 불러온 이름 사용
+        # 3. 둘 다 없으면 ID 사용
+        self._rt_nm = (item.get("rtNm") if item else None) or last_known_nm
         
         self.entity_id = f"sensor.{DOMAIN}_{slugify(station_id)}_{slugify(self._bus_route_id)}"
         self._attr_unique_id = unique_id
 
     @property
     def name(self):
-        """실시간으로 이름을 결정하며, 한번 확인된 rtNm은 변수에 저장하여 유지함"""
-        # 1. 현재 데이터에서 새로운 rtNm 탐색
+        # 실시간 데이터에서 노선명 업데이트 및 캐싱
         items = self.coordinator.data.get("items", [])
         for item in items:
             if item.get("busRouteId") == self._bus_route_id:
                 new_rt_nm = item.get("rtNm")
                 if new_rt_nm:
-                    self._rt_nm = new_rt_nm  # 찾았으면 변수에 저장 (캐싱)
+                    self._rt_nm = new_rt_nm
                     break
         
-        # 2. 저장된 rtNm이 있으면 사용, 없으면 ID 사용
         display_nm = self._rt_nm if self._rt_nm else self._bus_route_id
         return f"{display_nm} ({self._station_name})"
 
