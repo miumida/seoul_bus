@@ -14,20 +14,20 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_update_data():
-        # async_update_data 내부 (약 20번 라인 근처)
         conf = {**entry.data, **entry.options}
-        now = datetime.now().strftime("%H:%M") # %H:%M:%S에서 수정
-        start = conf[CONF_START_TIME][:5]      # 시:분만 가져오기
-        end = conf[CONF_END_TIME][:5]          # 시:분만 가져오기
+        
+        # 현재 시간과 설정 시간 모두 HH:MM 포맷으로 통일하여 비교
+        now = datetime.now().strftime("%H:%M")
+        start = conf.get(CONF_START_TIME, "00:00")[:5]
+        end = conf.get(CONF_END_TIME, "00:00")[:5]
 
-        # 00:00:00 ~ 00:00:00 이면 24시간 작동
         is_waiting = False
         if start != end:
             if not (start <= now <= end):
                 is_waiting = True
 
         if is_waiting:
-            # 시간외 구간에도 센서가 사라지지 않게 마지막 데이터 유지
+            # 대기 시간 중 기존 데이터 유지
             old_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
             return {"status": "waiting", "items": old_items}
 
