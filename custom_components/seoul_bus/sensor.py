@@ -20,16 +20,15 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # 2. 정류장 상태 센서
     entities.append(SeoulBusStationSensor(coordinator, station_id, station_nm, entry))
 
-    # 3. 버스 노선 센서 유지 로직
+    # 3. 버스 노선 센서 생성 및 유지
     data_dict = coordinator.data if isinstance(coordinator.data, dict) else {}
     items = data_dict.get("items", [])
     
-    # 만약 include_list가 있다면 데이터 유무와 상관없이 엔티티 생성 (사용불가 방지)
+    # 필터링된 버스 리스트가 있거나 현재 데이터에 버스가 있다면 엔티티 생성
     if include_list:
         for b_id in include_list:
             entities.append(SeoulBusSensor(coordinator, {"busRouteId": b_id, "rtNm": b_id}, station_id, entry))
     elif items:
-        # include_list가 없을 때는 현재 데이터에 있는 버스들로 생성
         for item in items:
             entities.append(SeoulBusSensor(coordinator, item, station_id, entry))
     
@@ -41,12 +40,12 @@ class SeoulBusBaseEntity:
 
     @property
     def device_info(self):
-        # [핵심] 모든 정류소 설정을 seoul_bus_global 이라는 하나의 ID로 묶어 기기를 하나로 합침
+        # [중요] 모든 인스턴스를 하나의 고정 ID로 묶어 기기를 하나로 합침
         return {
-            "identifiers": {(DOMAIN, "seoul_bus_global")},
+            "identifiers": {(DOMAIN, "seoul_bus_global_integration")},
             "name": "서울 버스 통합 정보",
             "manufacturer": "Seoul Bus API",
-            "model": "통합 관리 기기",
+            "model": "통합 관리 서비스",
         }
 
 class SeoulBusApiInfoSensor(SeoulBusBaseEntity, SensorEntity):
@@ -63,7 +62,7 @@ class SeoulBusApiInfoSensor(SeoulBusBaseEntity, SensorEntity):
             tmp = self._issued_date.split("-")
             expired = datetime(year=int(tmp[0])+2, month=int(tmp[1]), day=int(tmp[2]))
             return (expired - datetime.today()).days
-        except: return "Error"
+        except: return "오류"
 
 class SeoulBusStationSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
     def __init__(self, coordinator, station_id, station_name, entry):
