@@ -1,59 +1,62 @@
-import logging
-from datetime import datetime, timedelta
-import xmltodict
-import aiohttp
-import async_timeout
-
-from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+import voluptuous as vol
+from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.const import CONF_API_KEY
-from .const import DOMAIN, CONF_STATION_ID, CONF_START_TIME, CONF_END_TIME
+from homeassistant.helpers import selector
+from .const import DOMAIN, CONF_STATION_ID, CONF_STATION_NAME, CONF_START_TIME, CONF_END_TIME, CONF_API_ISSUED_DATE, DEFAULT_NAME
 
-_LOGGER = logging.getLogger(__name__)
+class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    VERSION = 1
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    async def async_update_data():
-        conf = {**entry.data, **entry.options}
-        now = datetime.now().strftime("%H:%M")
-        start, end = conf[CONF_START_TIME][:5], conf[CONF_END_TIME][:5]
+    async def async_step_user(self, user_input=None):
+        if user_input is not None:
+            await self.async_set_unique_id(user_input[CONF_STATION_ID])
+            self._abort_if_unique_id_configured()
+            title = user_input.get(CONF_STATION_NAME) or f"정류장 {user_input[CONF_STATION_ID]}"
+            return self.async_create_entry(title=title, data=user_input)
 
-        # 시간 외 구간 체크
-        is_waiting = False
-        if start != end and not (start <= now <= end):
-            is_waiting = True
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema({
+                vol.Required(CONF_API_KEY): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                ),
+                vol.Required(CONF_STATION_ID): str,
+                vol.Optional("include_buses", default=""): str,
+                vol.Optional(CONF_API_ISSUED_DATE): str,
+                # 초 단위 없이 시:분만 입력받도록 기본값 설정
+                vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector(),
+                vol.Optional(CONF_END_TIME, default="00:00"): selector.TimeSelector(),
+                vol.Optional(CONF_STATION_NAME, default=DEFAULT_NAME): str,
+            }),
+        )
 
-        if is_waiting:
-            # 기존 데이터를 유지하거나 빈 리스트를 반환하여 센서 삭제를 방지
-            prev_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
-            return {"status": "waiting", "items": prev_items}
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return SeoulBusOptionsFlowHandler(config_entry)
 
-        url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
-        try:
-            async with async_timeout.timeout(15):
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url) as response:
-                        data = xmltodict.parse(await response.text())
-                        msg_body = data.get('ServiceResult', {}).get('msgBody')
-                        items = msg_body.get('itemList') if msg_body else []
-                        res = items if isinstance(items, list) else ([items] if items else [])
-                        return {"status": "active", "items": res}
-        except Exception as err:
-            raise UpdateFailed(f"API Error: {err}")
+class SeoulBusOptionsFlowHandler(config_entries.OptionsFlow):
+    def __init__(self, config_entry):
+        self._custom_config_entry = config_entry
 
-    coordinator = DataUpdateCoordinator(
-        hass, _LOGGER, name=f"{DOMAIN}_{entry.data[CONF_STATION_ID]}",
-        update_method=async_update_data,
-        update_interval=timedelta(seconds=60),
-    )
+    async def async_step_init(self, user_input=None):
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
 
-    await coordinator.async_config_entry_first_refresh()
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-    entry.async_on_unload(entry.add_update_listener(lambda h, e: h.config_entries.async_reload(e.entry_id)))
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
-    return True
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    unload_ok = await hass.config_entries.async_forward_entry_unload(entry, "sensor")
-    if unload_ok: hass.data[DOMAIN].pop(entry.entry_id)
-    return unload_ok
+        options = self._custom_config_entry.options
+        data = self._custom_config_entry.data
+        
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Required(CONF_API_KEY, default=options.get(CONF_API_KEY, data.get(CONF_API_KEY))): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                ),
+                vol.Required(CONF_STATION_ID, default=options.get(CONF_STATION_ID, data.get(CONF_STATION_ID))): str,
+                vol.Optional("include_buses", default=options.get("include_buses", data.get("include_buses", ""))): str,
+                vol.Optional(CONF_API_ISSUED_DATE, default=options.get(CONF_API_ISSUED_DATE, data.get(CONF_API_ISSUED_DATE, ""))): str,
+                vol.Required(CONF_START_TIME, default=options.get(CONF_START_TIME, data.get(CONF_START_TIME, "00:00"))): selector.TimeSelector(),
+                vol.Required(CONF_END_TIME, default=options.get(CONF_END_TIME, data.get(CONF_END_TIME, "00:00"))): selector.TimeSelector(),
+            }),
+        )
