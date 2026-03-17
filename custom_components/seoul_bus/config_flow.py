@@ -1,9 +1,9 @@
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.const import CONF_API_KEY, CONF_NAME
+from homeassistant.const import CONF_API_KEY
 from homeassistant.helpers import selector
-from .const import DOMAIN, CONF_STATION_ID, CONF_START_TIME, CONF_END_TIME, CONF_API_ISSUED_DATE, DEFAULT_NAME
+from .const import DOMAIN, CONF_STATION_ID, CONF_STATION_NAME, CONF_START_TIME, CONF_END_TIME, CONF_API_ISSUED_DATE, DEFAULT_NAME
 
 class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
@@ -12,7 +12,8 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             await self.async_set_unique_id(user_input[CONF_STATION_ID])
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=user_input.get(CONF_NAME, DEFAULT_NAME), data=user_input)
+            # 입력된 정류장명을 타이틀로 사용
+            return self.async_create_entry(title=user_input.get(CONF_STATION_NAME, DEFAULT_NAME), data=user_input)
 
         return self.async_show_form(
             step_id="user",
@@ -23,9 +24,9 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_STATION_ID): str,
                 vol.Optional("include_buses", default=""): str,
                 vol.Optional(CONF_API_ISSUED_DATE): str,
-                vol.Optional(CONF_START_TIME, default="00:00:00"): selector.TimeSelector(),
-                vol.Optional(CONF_END_TIME, default="00:00:00"): selector.TimeSelector(),
-                vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+                vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector(),
+                vol.Optional(CONF_END_TIME, default="00:00"): selector.TimeSelector(),
+                vol.Optional(CONF_STATION_NAME, default=DEFAULT_NAME): str, # 'name'을 'station_name'으로 변경
             }),
         )
 
@@ -54,7 +55,7 @@ class SeoulBusOptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(CONF_STATION_ID, default=options.get(CONF_STATION_ID, data.get(CONF_STATION_ID))): str,
                 vol.Optional("include_buses", default=options.get("include_buses", data.get("include_buses", ""))): str,
                 vol.Optional(CONF_API_ISSUED_DATE, default=options.get(CONF_API_ISSUED_DATE, data.get(CONF_API_ISSUED_DATE, ""))): str,
-                vol.Required(CONF_START_TIME, default=options.get(CONF_START_TIME, data.get(CONF_START_TIME, "00:00:00"))): selector.TimeSelector(),
-                vol.Required(CONF_END_TIME, default=options.get(CONF_END_TIME, data.get(CONF_END_TIME, "00:00:00"))): selector.TimeSelector(),
+                vol.Required(CONF_START_TIME, default=options.get(CONF_START_TIME, data.get(CONF_START_TIME, "00:00"))): selector.TimeSelector(),
+                vol.Required(CONF_END_TIME, default=options.get(CONF_END_TIME, data.get(CONF_END_TIME, "00:00"))): selector.TimeSelector(),
             }),
         )
