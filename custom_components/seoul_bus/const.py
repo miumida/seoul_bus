@@ -4,4 +4,4 @@ CONF_STATION_NAME = "station_name"
 CONF_START_TIME = "start_time"
 CONF_END_TIME = "end_time"
 CONF_API_ISSUED_DATE = "api_issued_date"
-DEFAULT_NAME = "" # 기본값을 빈칸으로 수정
+DEFAULT_NAME = "" # 기본값을 빈칸으로 설정
