@@ -5,12 +5,9 @@ from .const import DOMAIN, CONF_STATION_ID, CONF_API_ISSUED_DATE
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    station_id = entry.data[CONF_STATION_ID]
-    
     conf = {**entry.data, **entry.options}
-    # 쉼표로 구분된 버스 번호들을 리스트로 변환
+    station_id = conf.get(CONF_STATION_ID)
     include_list = [x.strip() for x in conf.get("include_buses", "").split(",") if x.strip()]
-    exclude_list = [x.strip() for x in conf.get("exclude_buses", "").split(",") if x.strip()]
 
     entities = []
     
@@ -18,18 +15,14 @@ async def async_setup_entry(hass, entry, async_add_entities):
     if issued_date:
         entities.append(SeoulBusApiInfoSensor(issued_date, entry.entry_id))
 
+    # 데이터 유무와 상관없이 기기 확인용으로 생성
+    entities.append(SeoulBusStationSensor(coordinator, station_id))
+
     if coordinator.data:
-        entities.append(SeoulBusStationSensor(coordinator, station_id))
-        
         for item in coordinator.data:
-            bus_id = item['busRouteId'] # API에서 제공하는 버스 노선 ID
-            
-            # 필터링 로직 적용
+            bus_id = item.get('busRouteId')
             if include_list and bus_id not in include_list:
                 continue
-            if exclude_list and bus_id in exclude_list:
-                continue
-                
             entities.append(SeoulBusSensor(coordinator, item, station_id))
     
     async_add_entities(entities)
@@ -72,6 +65,8 @@ class SeoulBusStationSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity)
 
     @property
     def state(self):
+        if not self.coordinator.data:
+            return "운행 정지 (시간외)"
         return "운행중" if any(i.get('vehId1', '0') != '0' for i in self.coordinator.data) else "운행종료"
 
 class SeoulBusSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
