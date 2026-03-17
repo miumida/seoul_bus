@@ -15,7 +15,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
     if issued_date:
         entities.append(SeoulBusApiInfoSensor(issued_date, entry.entry_id))
 
-    # 데이터 유무와 상관없이 기기 확인용으로 생성
     entities.append(SeoulBusStationSensor(coordinator, station_id))
 
     if coordinator.data:
@@ -66,7 +65,7 @@ class SeoulBusStationSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity)
     @property
     def state(self):
         if not self.coordinator.data:
-            return "운행 정지 (시간외)"
+            return "업데이트 대기(시간외)"
         return "운행중" if any(i.get('vehId1', '0') != '0' for i in self.coordinator.data) else "운행종료"
 
 class SeoulBusSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
