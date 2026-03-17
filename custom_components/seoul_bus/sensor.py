@@ -16,12 +16,13 @@ async def async_setup_entry(hass, entry, async_add_entities):
     if issued_date:
         entities.append(SeoulBusApiInfoSensor(issued_date, entry))
 
+    # 정류장 상태 센서
     entities.append(SeoulBusStationSensor(coordinator, station_id, station_nm, entry))
 
+    # 버스 노선 센서 (데이터가 없어도 엔티티 생성을 유지하여 '사용불가' 방지)
     data_struct = coordinator.data if isinstance(coordinator.data, dict) else {}
     items = data_struct.get("items", [])
-
-    # 센서 리스트 생성
+    
     if include_list:
         for b_id in include_list:
             entities.append(SeoulBusSensor(coordinator, {"busRouteId": b_id, "rtNm": b_id}, station_id, entry))
@@ -37,7 +38,7 @@ class SeoulBusBaseEntity:
 
     @property
     def device_info(self):
-        # [핵심] identifiers를 상수로 고정하여 mart_holiday처럼 모든 등록 건을 하나의 기기로 묶음
+        # [핵심] 모든 인스턴스를 하나의 고유 ID로 묶어 기기를 하나로 합침
         return {
             "identifiers": {(DOMAIN, "seoul_bus_global_integrated_device")},
             "name": "서울 버스 통합 정보",
