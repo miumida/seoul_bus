@@ -13,14 +13,14 @@ async def async_setup_entry(hass, entry, async_add_entities):
     station_id = entry.data[CONF_STATION_ID]
     station_name = entry.data.get(CONF_STATION_NAME) or f"정류장 {station_id}"
     
-    # 설정에서 포함할 버스 목록 가져오기
+    # 설정된 버스 목록 파싱
     include_str = entry.options.get(CONF_INCLUDE_BUSES, entry.data.get(CONF_INCLUDE_BUSES, ""))
     include_targets = [x.strip() for x in include_str.split(",")] if include_str else []
     
-    # 1. 현재 유효한 엔티티들의 unique_id 리스트 생성
+    # 1. 유지해야 할 unique_id 리스트 초기화
     current_unique_ids = []
     
-    # 기본 센서들 (상태, 업데이트 시간)
+    # 기본 센서 (항상 유지)
     status_id = f"{DOMAIN}_{station_id}_status_sensor"
     update_id = f"{DOMAIN}_{station_id}_last_update_sensor"
     current_unique_ids.extend([status_id, update_id])
@@ -30,31 +30,30 @@ async def async_setup_entry(hass, entry, async_add_entities):
         SeoulBusLastUpdateSensor(coordinator, entry, station_id, station_name, update_id)
     ]
     
-    # 버스 센서 생성 로직
+    # 2. 버스 센서 생성 로직 (설정 기반)
+    # API 응답 유무와 상관없이 설정에 있는 버스는 엔티티로 등록하여 삭제를 방지함
     added_bus_ids = set()
 
-    # A. API 응답(itemList)에 있는 버스들 추가
-    if coordinator.data and "items" in coordinator.data:
+    # 우선 설정(include_buses)에 있는 버스들부터 엔티티 생성 리스트에 추가
+    for bus_id in include_targets:
+        bus_unique_id = f"{DOMAIN}_{station_id}_{bus_id}_bus_sensor"
+        if bus_unique_id not in added_bus_ids:
+            # 설정 기반 생성 시에는 초기 item 정보가 없으므로 None 전달 가능하도록 처리
+            entities.append(SeoulBusSensor(coordinator, entry, None, station_id, station_name, bus_unique_id, bus_id))
+            current_unique_ids.append(bus_unique_id)
+            added_bus_ids.add(bus_unique_id)
+
+    # 설정이 비어있을 경우에만 API 응답에 있는 모든 버스를 추가 (기존 로직 유지)
+    if not include_targets and coordinator.data and "items" in coordinator.data:
         for item in coordinator.data["items"]:
             bus_route_id = item.get("busRouteId")
-            if not bus_route_id: continue
-            
             bus_unique_id = f"{DOMAIN}_{station_id}_{bus_route_id}_bus_sensor"
             if bus_unique_id not in added_bus_ids:
+                entities.append(SeoulBusSensor(coordinator, entry, item, station_id, station_name, bus_unique_id, bus_route_id))
                 current_unique_ids.append(bus_unique_id)
-                entities.append(SeoulBusSensor(coordinator, entry, item, station_id, station_name, bus_unique_id))
                 added_bus_ids.add(bus_unique_id)
-    
-    # B. [핵심 수정] API 응답에 없더라도 설정(include_targets)에 명시된 버스는 삭제 목록에서 제외
-    # 시간 외 시간(업데이트 대기중)에 센서가 삭제되는 것을 방지합니다.
-    for target_bus in include_targets:
-        target_unique_id = f"{DOMAIN}_{station_id}_{target_bus}_bus_sensor"
-        if target_unique_id not in current_unique_ids:
-            current_unique_ids.append(target_unique_id)
-            # 주의: 이때는 item 정보가 없으므로 최소한의 정보로 센서 생성 유지
-            # 기존에 이미 등록된 엔티티가 있다면 아래 로직은 실행되지 않고 레지스트리 유지용 리스트에만 포함됨
 
-    # 2. 엔티티 레지스트리 정리
+    # 3. 자동 삭제: 현재 유지 리스트(설정값 포함)에 없는 엔티티만 레지스트리에서 제거
     ent_reg = er.async_get(hass)
     registered_entities = er.async_entries_for_config_entry(ent_reg, entry.entry_id)
     
@@ -104,22 +103,24 @@ class SeoulBusLastUpdateSensor(SeoulBusBase, SensorEntity):
         return getattr(self.coordinator, "last_update_success_time", None)
 
 class SeoulBusSensor(SeoulBusBase, SensorEntity):
-    def __init__(self, coordinator, entry, item, station_id, station_name, unique_id):
+    def __init__(self, coordinator, entry, item, station_id, station_name, unique_id, bus_route_id):
         super().__init__(coordinator, entry, station_id, station_name)
-        bus_route_id = item.get("busRouteId")
-        bus_nm = item.get("rtNm")
-        
-        self.entity_id = f"sensor.{DOMAIN}_{slugify(station_id)}_{slugify(bus_route_id)}"
-        self._attr_unique_id = unique_id
-        self._attr_name = f"{bus_nm} ({station_name})"
+        # item이 없을 경우를 대비해 bus_route_id를 직접 받음
         self._bus_route_id = bus_route_id
+        self._bus_nm = item.get("rtNm") if item else bus_route_id
+        
+        self.entity_id = f"sensor.{DOMAIN}_{slugify(station_id)}_{slugify(self._bus_route_id)}"
+        self._attr_unique_id = unique_id
+        self._attr_name = f"{self._bus_nm} ({station_name})"
 
     @property
     def state(self):
+        # 시간외 대기 상태 처리 (핵심)
         if self.coordinator.data.get("status") == "waiting":
             return "업데이트 대기중"
         
-        for item in self.coordinator.data.get("items", []):
+        items = self.coordinator.data.get("items", [])
+        for item in items:
             if item.get("busRouteId") == self._bus_route_id:
                 return item.get("arrmsg1")
         return "정보 없음"
