@@ -18,11 +18,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         now = datetime.now().strftime("%H:%M")
         start, end = conf[CONF_START_TIME][:5], conf[CONF_END_TIME][:5]
 
-        # 시간 범위 체크 (같으면 무조건 실행)
+        # 시간 범위 체크
         if start != end and not (start <= now <= end):
-            # 시간 외 구간: 기존 데이터를 유지하여 센서 사라짐 방지
-            prev_data = coordinator.data if coordinator.data and isinstance(coordinator.data, dict) else {}
-            return {"status": "waiting", "items": prev_data.get("items", [])}
+            # 시간 외 구간: 기존 데이터를 유지하여 센서가 사라지지 않게 함
+            items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
+            return {"status": "waiting", "items": items}
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
         try:
