@@ -1,12 +1,11 @@
 {
   "domain": "seoul_bus",
-  "name": "seoul_bus",
+  "name": "서울 버스 (Seoul Bus)",
   "documentation": "https://github.com/miumida/seoul_bus",
-  "requirements": [],
+  "requirements": ["xmltodict==0.13.0"],
   "dependencies": [],
-  "codeowners": [
-    "@miumida"
-  ],
+  "codeowners": ["@miumida"],
   "iot_class": "cloud_polling",
-  "version": "1.4.1"
+  "config_flow": true,
+  "version": "2.1.0"
 }
