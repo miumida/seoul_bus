@@ -15,9 +15,11 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_update_data():
         conf = {**entry.data, **entry.options}
-        now = datetime.now().strftime("%H:%M")
+        now = datetime.now().strftime("%H:%M:%S")
         
+        # 설정된 시간 범위 내에 있는지 확인
         if not (conf[CONF_START_TIME] <= now <= conf[CONF_END_TIME]):
+            _LOGGER.debug("Seoul Bus: Outside of scheduled time. Skipping update.")
             return coordinator.data if coordinator.data else []
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
@@ -26,11 +28,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as response:
                         data = xmltodict.parse(await response.text())
-                        items = data['ServiceResult']['msgBody'].get('itemList')
+                        msg_body = data.get('ServiceResult', {}).get('msgBody')
+                        if not msg_body: return []
+                        items = msg_body.get('itemList')
                         if not items: return []
                         return items if isinstance(items, list) else [items]
         except Exception as err:
-            raise UpdateFailed(f"Error: {err}")
+            raise UpdateFailed(f"Error fetching Seoul Bus data: {err}")
 
     coordinator = DataUpdateCoordinator(
         hass, _LOGGER, name=f"{DOMAIN}_{entry.data[CONF_STATION_ID]}",
@@ -42,8 +46,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     
     entry.async_on_unload(entry.add_update_listener(lambda h, e: h.config_entries.async_reload(e.entry_id)))
-    
-    # AttributeError 해결을 위한 최신 메서드 호출 방식 변경
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     return True
 
