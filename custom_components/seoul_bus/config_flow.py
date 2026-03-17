@@ -23,7 +23,6 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_STATION_ID): str,
                 vol.Optional("include_buses", default=""): str,
                 vol.Optional(CONF_API_ISSUED_DATE): str,
-                # 기본값을 00:00:00 ~ 00:00:00으로 설정
                 vol.Optional(CONF_START_TIME, default="00:00:00"): selector.TimeSelector(),
                 vol.Optional(CONF_END_TIME, default="00:00:00"): selector.TimeSelector(),
                 vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
