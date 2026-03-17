@@ -17,7 +17,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     include_targets = [x.strip() for x in include_str.split(",")] if include_str else []
     
     current_unique_ids = []
-    ent_reg = er.async_get(hass) # 엔티티 레지스트리 가져오기
+    ent_reg = er.async_get(hass) # 엔티티 레지스트리 객체
     
     status_id = f"{DOMAIN}_{station_id}_status_sensor"
     update_id = f"{DOMAIN}_{station_id}_last_update_sensor"
@@ -34,12 +34,17 @@ async def async_setup_entry(hass, entry, async_add_entities):
     for bus_id in include_targets:
         bus_unique_id = f"{DOMAIN}_{station_id}_{bus_id}_bus_sensor"
         if bus_unique_id not in added_bus_ids:
-            # [핵심] 레지스트리에서 기존에 저장된 이름이 있는지 확인
-            existing_entry = ent_reg.async_get_unique_id(bus_unique_id)
+            # [수정된 부분] 존재하지 않는 함수 대신 올바른 순서로 엔티티 정보 추출
+            # 1. unique_id를 통해 entity_id(예: sensor.seoul_bus_07267_100100203)를 찾음
+            target_entity_id = ent_reg.async_get_entity_id("sensor", DOMAIN, bus_unique_id)
+            
             last_known_nm = None
-            if existing_entry and existing_entry.original_name:
-                # "2230 (중랑구청)" 형태에서 "2230"만 추출 시도
-                last_known_nm = existing_entry.original_name.split(" (")[0]
+            if target_entity_id:
+                # 2. entity_id가 존재하면 레지스트리에서 상세 entry 정보를 가져옴
+                existing_entry = ent_reg.async_get(target_entity_id)
+                if existing_entry and existing_entry.original_name:
+                    # 기존 이름 "2230 (중랑구청)"에서 노선번호 "2230"만 분리
+                    last_known_nm = existing_entry.original_name.split(" (")[0]
 
             entities.append(SeoulBusSensor(coordinator, entry, None, station_id, station_name, bus_unique_id, bus_id, last_known_nm))
             current_unique_ids.append(bus_unique_id)
@@ -104,9 +109,7 @@ class SeoulBusSensor(SeoulBusBase, SensorEntity):
     def __init__(self, coordinator, entry, item, station_id, station_name, unique_id, bus_route_id, last_known_nm=None):
         super().__init__(coordinator, entry, station_id, station_name)
         self._bus_route_id = bus_route_id
-        # 1. API 데이터가 있으면 rtNm 사용
-        # 2. 없으면 레지스트리에서 불러온 이름 사용
-        # 3. 둘 다 없으면 ID 사용
+        # 메모리에 노선번호 저장 (API 데이터 우선 > 레지스트리 기록 우선 > 없으면 ID)
         self._rt_nm = (item.get("rtNm") if item else None) or last_known_nm
         
         self.entity_id = f"sensor.{DOMAIN}_{slugify(station_id)}_{slugify(self._bus_route_id)}"
