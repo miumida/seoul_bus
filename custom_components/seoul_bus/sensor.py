@@ -17,18 +17,19 @@ async def async_setup_entry(hass, entry, async_add_entities):
     if issued_date:
         entities.append(SeoulBusApiInfoSensor(issued_date, entry))
 
-    # 2. 정류장 상태 센서 (Unique ID: seoul_bus_정류장ID)
+    # 2. 정류장 상태 센서
     entities.append(SeoulBusStationSensor(coordinator, station_id, station_nm, entry))
 
-    # 3. 버스 노선 센서 (Unique ID: seoul_bus_정류장ID_버스ID)
-    data_structure = coordinator.data if isinstance(coordinator.data, dict) else {}
-    items = data_structure.get("items", [])
+    # 3. 버스 노선 센서 유지 로직
+    data_dict = coordinator.data if isinstance(coordinator.data, dict) else {}
+    items = data_dict.get("items", [])
     
-    # 시간 외 구간에서도 센서가 사라지지 않도록 엔티티 리스트를 미리 확보
+    # 만약 include_list가 있다면 데이터 유무와 상관없이 엔티티 생성 (사용불가 방지)
     if include_list:
         for b_id in include_list:
             entities.append(SeoulBusSensor(coordinator, {"busRouteId": b_id, "rtNm": b_id}, station_id, entry))
     elif items:
+        # include_list가 없을 때는 현재 데이터에 있는 버스들로 생성
         for item in items:
             entities.append(SeoulBusSensor(coordinator, item, station_id, entry))
     
@@ -40,9 +41,9 @@ class SeoulBusBaseEntity:
 
     @property
     def device_info(self):
-        # 모든 정류장 설정을 하나의 고정된 기기 ID로 묶음
+        # [핵심] 모든 정류소 설정을 seoul_bus_global 이라는 하나의 ID로 묶어 기기를 하나로 합침
         return {
-            "identifiers": {(DOMAIN, "seoul_bus_unified_device")},
+            "identifiers": {(DOMAIN, "seoul_bus_global")},
             "name": "서울 버스 통합 정보",
             "manufacturer": "Seoul Bus API",
             "model": "통합 관리 기기",
@@ -68,7 +69,6 @@ class SeoulBusStationSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity)
     def __init__(self, coordinator, station_id, station_name, entry):
         super().__init__(coordinator)
         SeoulBusBaseEntity.__init__(self, entry)
-        # 요청사항 반영: 유니크 ID 규칙
         self._attr_unique_id = f"seoul_bus_{station_id}"
         self._attr_name = f"{station_name} 상태"
         self._attr_icon = "mdi:nature-people"
@@ -88,7 +88,6 @@ class SeoulBusSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
         self._route_id = item.get('busRouteId')
         self._route_nm = item.get('rtNm', self._route_id)
         self._station_id = station_id
-        # 요청사항 반영: 유니크 ID 규칙
         self._attr_unique_id = f"seoul_bus_{station_id}_{self._route_id}"
         self._attr_name = f"{self._route_nm} 버스 ({station_id})"
         self._attr_icon = "mdi:bus"
