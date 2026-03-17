@@ -15,16 +15,14 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_update_data():
         conf = {**entry.data, **entry.options}
-        now = datetime.now().strftime("%H:%M:%S")
+        now = datetime.now().strftime("%H:%M")
         
-        start = conf[CONF_START_TIME]
-        end = conf[CONF_END_TIME]
+        start = conf[CONF_START_TIME][:5]
+        end = conf[CONF_END_TIME][:5]
 
-        # 시작/종료 시간이 같으면 항상 업데이트, 다르면 범위 체크
         if start != end:
             if not (start <= now <= end):
-                _LOGGER.debug("Seoul Bus: Outside of schedule. Skipping update.")
-                return None # 시간 외 구간임을 표시하기 위해 None 반환
+                return {"status": "waiting"}
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
         try:
