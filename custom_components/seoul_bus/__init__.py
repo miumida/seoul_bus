@@ -17,21 +17,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         conf = {**entry.data, **entry.options}
         now = datetime.now().strftime("%H:%M:%S")
         
-        # 설정된 시간 범위 내에 있는지 확인
-        if not (conf[CONF_START_TIME] <= now <= conf[CONF_END_TIME]):
-            _LOGGER.debug("Seoul Bus: Outside of scheduled time. Skipping update.")
-            return coordinator.data if coordinator.data else []
+        start = conf[CONF_START_TIME]
+        end = conf[CONF_END_TIME]
+
+        # 시작과 종료 시간이 같으면(기본값 00:00:00) 시간 제한 없이 항상 업데이트
+        if start != end:
+            if not (start <= now <= end):
+                _LOGGER.debug("Seoul Bus: Outside of scheduled time. Skipping update.")
+                return coordinator.data if coordinator.data else []
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
         try:
             async with async_timeout.timeout(15):
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as response:
-                        data = xmltodict.parse(await response.text())
+                        res_text = await response.text()
+                        data = xmltodict.parse(res_text)
+                        
                         msg_body = data.get('ServiceResult', {}).get('msgBody')
                         if not msg_body: return []
+                        
                         items = msg_body.get('itemList')
                         if not items: return []
+                        
                         return items if isinstance(items, list) else [items]
         except Exception as err:
             raise UpdateFailed(f"Error fetching Seoul Bus data: {err}")
