@@ -17,7 +17,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         conf = {**entry.data, **entry.options}
         now = datetime.now().strftime("%H:%M")
         
-        # 시간 범위 체크
         if not (conf[CONF_START_TIME] <= now <= conf[CONF_END_TIME]):
             return coordinator.data if coordinator.data else []
 
@@ -41,8 +40,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    
     entry.async_on_unload(entry.add_update_listener(lambda h, e: h.config_entries.async_reload(e.entry_id)))
-    hass.async_create_task(hass.config_entries.async_forward_entry_setup(entry, "sensor"))
+    
+    # AttributeError 해결을 위한 최신 메서드 호출 방식 변경
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
