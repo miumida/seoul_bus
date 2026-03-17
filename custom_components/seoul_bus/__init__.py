@@ -14,9 +14,11 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_update_data():
+        # async_update_data 내부 (약 20번 라인 근처)
         conf = {**entry.data, **entry.options}
-        now = datetime.now().strftime("%H:%M:%S")
-        start, end = conf[CONF_START_TIME], conf[CONF_END_TIME]
+        now = datetime.now().strftime("%H:%M") # %H:%M:%S에서 수정
+        start = conf[CONF_START_TIME][:5]      # 시:분만 가져오기
+        end = conf[CONF_END_TIME][:5]          # 시:분만 가져오기
 
         # 00:00:00 ~ 00:00:00 이면 24시간 작동
         is_waiting = False
