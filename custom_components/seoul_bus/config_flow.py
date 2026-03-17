@@ -12,8 +12,7 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             await self.async_set_unique_id(user_input[CONF_STATION_ID])
             self._abort_if_unique_id_configured()
-            # 정류장명이 비어있으면 정류장 ID를 타이틀로 사용
-            title = user_input.get(CONF_STATION_NAME) or user_input[CONF_STATION_ID]
+            title = user_input.get(CONF_STATION_NAME) or f"정류장 {user_input[CONF_STATION_ID]}"
             return self.async_create_entry(title=title, data=user_input)
 
         return self.async_show_form(
@@ -25,6 +24,7 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_STATION_ID): str,
                 vol.Optional("include_buses", default=""): str,
                 vol.Optional(CONF_API_ISSUED_DATE): str,
+                # 초 단위 없이 시:분만 입력받도록 기본값 설정
                 vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector(),
                 vol.Optional(CONF_END_TIME, default="00:00"): selector.TimeSelector(),
                 vol.Optional(CONF_STATION_NAME, default=DEFAULT_NAME): str,
