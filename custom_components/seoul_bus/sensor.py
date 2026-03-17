@@ -17,8 +17,15 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     entities.append(SeoulBusStationSensor(coordinator, station_id))
 
-    if coordinator.data:
-        for item in coordinator.data:
+    # 코디네이터에 데이터가 있든 없든(시간외 대기 중이든) 엔티티 구조는 유지해야 함
+    # API 결과나 기존 캐시 데이터가 있다면 노선별 센서 생성
+    data = coordinator.data if coordinator.data else []
+    
+    # 만약 시간외 구간이라 data가 None이나 []라면, 
+    # 기존에 어떤 노선이 있었는지 알 수 없으므로 정류장 센서만 먼저 보임
+    # 하지만 최초 로드 시 한 번이라도 데이터를 가져왔다면 노선 센서들이 유지됩니다.
+    if data:
+        for item in data:
             bus_id = item.get('busRouteId')
             if include_list and bus_id not in include_list:
                 continue
@@ -64,8 +71,8 @@ class SeoulBusStationSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity)
 
     @property
     def state(self):
-        if not self.coordinator.data:
-            return "업데이트 대기(시간외)"
+        if self.coordinator.data is None:
+            return "업데이트 대기 중"
         return "운행중" if any(i.get('vehId1', '0') != '0' for i in self.coordinator.data) else "운행종료"
 
 class SeoulBusSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
@@ -80,13 +87,17 @@ class SeoulBusSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
 
     @property
     def state(self):
+        if self.coordinator.data is None:
+            return "업데이트 대기 중"
+            
         for item in self.coordinator.data:
             if item['busRouteId'] == self._route_id: return item['arrmsg1']
         return "정보 없음"
 
     @property
     def extra_state_attributes(self):
+        if self.coordinator.data is None: return {}
         for item in self.coordinator.data:
             if item['busRouteId'] == self._route_id:
-                return {"방향": item.get('adirection'), "두번째도착": item.get('arrmsg2'), "정류소": item.get('stNm'), "정류소ID": self._station_id}
+                return {"방향": item.get('adirection'), "두번째도착": item.get('arrmsg2'), "정류소": item.get('stNm')}
         return {}
