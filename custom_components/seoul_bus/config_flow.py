@@ -16,17 +16,19 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title = user_input.get(CONF_STATION_NAME) or f"정류장 {user_input[CONF_STATION_ID]}"
             return self.async_create_entry(title=title, data=user_input)
 
-        # 400 에러를 방지하기 위해 가장 안전한 스키마 구조 사용
-        # 기본값(default)을 지정하지 않거나, selector의 최소 사양만 정의
+        # 핵심: default와 format의 길이를 5자리로 통일
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
                 vol.Required(CONF_API_KEY): str,
                 vol.Required(CONF_STATION_ID): str,
                 vol.Optional(CONF_STATION_NAME): str,
-                # 포맷을 명시하지 않거나 기본값을 5자리로 통일
-                vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector({}),
-                vol.Optional(CONF_END_TIME, default="00:00"): selector.TimeSelector({}),
+                vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector(
+                    selector.TimeSelectorConfig(format="hh:mm")
+                ),
+                vol.Optional(CONF_END_TIME, default="00:00"): selector.TimeSelector(
+                    selector.TimeSelectorConfig(format="hh:mm")
+                ),
                 vol.Optional("include_buses"): str,
                 vol.Optional(CONF_API_ISSUED_DATE): str,
             }),
@@ -51,10 +53,10 @@ class SeoulBusOptionsFlowHandler(config_entries.OptionsFlow):
         def get_v(key, default_val=""):
             return options.get(key, data.get(key, default_val))
 
-        # 기존 데이터가 8자리(HH:MM:SS)일 경우를 대비해 5자리로 자름
+        # 기존에 혹시라도 8자리로 저장된 데이터가 있다면 5자리로 잘라서 로드
         def fix_t(key):
-            t = get_v(key, "00:00")
-            return t[:5] if t else "00:00"
+            val = get_v(key, "00:00")
+            return val[:5] if val else "00:00"
 
         return self.async_show_form(
             step_id="init",
@@ -62,8 +64,12 @@ class SeoulBusOptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(CONF_API_KEY, default=get_v(CONF_API_KEY)): str,
                 vol.Required(CONF_STATION_ID, default=get_v(CONF_STATION_ID)): str,
                 vol.Optional(CONF_STATION_NAME, default=get_v(CONF_STATION_NAME)): str,
-                vol.Optional(CONF_START_TIME, default=fix_t(CONF_START_TIME)): selector.TimeSelector({}),
-                vol.Optional(CONF_END_TIME, default=fix_t(CONF_END_TIME)): selector.TimeSelector({}),
+                vol.Optional(CONF_START_TIME, default=fix_t(CONF_START_TIME)): selector.TimeSelector(
+                    selector.TimeSelectorConfig(format="hh:mm")
+                ),
+                vol.Optional(CONF_END_TIME, default=fix_t(CONF_END_TIME)): selector.TimeSelector(
+                    selector.TimeSelectorConfig(format="hh:mm")
+                ),
                 vol.Optional("include_buses", default=get_v("include_buses")): str,
                 vol.Optional(CONF_API_ISSUED_DATE, default=get_v(CONF_API_ISSUED_DATE)): str,
             }),
