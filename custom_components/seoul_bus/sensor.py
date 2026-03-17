@@ -1,4 +1,3 @@
-from datetime import datetime
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, CONF_STATION_ID, CONF_API_ISSUED_DATE, CONF_STATION_NAME
@@ -12,17 +11,13 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     entities = []
     
-    issued_date = conf.get(CONF_API_ISSUED_DATE)
-    if issued_date:
-        entities.append(SeoulBusApiInfoSensor(issued_date, entry))
-
     # 정류장 상태 센서
     entities.append(SeoulBusStationSensor(coordinator, station_id, station_nm, entry))
 
-    # 버스 노선 센서 (데이터가 없어도 엔티티 생성을 유지하여 '사용불가' 방지)
     data_struct = coordinator.data if isinstance(coordinator.data, dict) else {}
     items = data_struct.get("items", [])
-    
+
+    # 버스 센서 생성
     if include_list:
         for b_id in include_list:
             entities.append(SeoulBusSensor(coordinator, {"busRouteId": b_id, "rtNm": b_id}, station_id, entry))
@@ -38,35 +33,19 @@ class SeoulBusBaseEntity:
 
     @property
     def device_info(self):
-        # [핵심] 모든 인스턴스를 하나의 고유 ID로 묶어 기기를 하나로 합침
+        # 모든 항목을 하나의 기기로 강제 통합
         return {
-            "identifiers": {(DOMAIN, "seoul_bus_global_integrated_device")},
+            "identifiers": {(DOMAIN, "seoul_bus_global")},
             "name": "서울 버스 통합 정보",
             "manufacturer": "Seoul Bus API",
             "model": "통합 관리 서비스",
         }
 
-class SeoulBusApiInfoSensor(SeoulBusBaseEntity, SensorEntity):
-    def __init__(self, issued_date, entry):
-        super().__init__(entry)
-        self._issued_date = issued_date
-        self._attr_unique_id = f"seoul_bus_api_info_{entry.entry_id}"
-        self._attr_name = "API 만료 정보"
-        self._attr_icon = "mdi:key-variant"
-
-    @property
-    def state(self):
-        try:
-            tmp = self._issued_date.split("-")
-            expired = datetime(year=int(tmp[0])+2, month=int(tmp[1]), day=int(tmp[2]))
-            return (expired - datetime.today()).days
-        except: return "오류"
-
 class SeoulBusStationSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
     def __init__(self, coordinator, station_id, station_name, entry):
         super().__init__(coordinator)
         SeoulBusBaseEntity.__init__(self, entry)
-        self._attr_unique_id = f"seoul_bus_{station_id}"
+        self._attr_unique_id = f"seoul_bus_status_{station_id}"
         self._attr_name = f"{station_name} 상태"
         self._attr_icon = "mdi:nature-people"
 
@@ -84,8 +63,7 @@ class SeoulBusSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
         SeoulBusBaseEntity.__init__(self, entry)
         self._route_id = item.get('busRouteId')
         self._route_nm = item.get('rtNm', self._route_id)
-        self._station_id = station_id
-        self._attr_unique_id = f"seoul_bus_{station_id}_{self._route_id}"
+        self._attr_unique_id = f"seoul_bus_sensor_{station_id}_{self._route_id}"
         self._attr_name = f"{self._route_nm} 버스 ({station_id})"
         self._attr_icon = "mdi:bus"
 
@@ -98,12 +76,3 @@ class SeoulBusSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
             if item.get('busRouteId') == self._route_id:
                 return item.get('arrmsg1', '정보 없음')
         return "정보 없음"
-
-    @property
-    def extra_state_attributes(self):
-        data = self.coordinator.data if isinstance(self.coordinator.data, dict) else {}
-        items = data.get("items", [])
-        for item in items:
-            if item.get('busRouteId') == self._route_id:
-                return {"방향": item.get('adirection'), "두번째도착": item.get('arrmsg2'), "정류소ID": self._station_id}
-        return {}
