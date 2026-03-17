@@ -1,6 +1,7 @@
+from datetime import datetime
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from .const import DOMAIN, CONF_STATION_ID, CONF_STATION_NAME
+from .const import DOMAIN, CONF_STATION_ID, CONF_API_ISSUED_DATE, CONF_STATION_NAME
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
@@ -11,13 +12,15 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     entities = []
     
-    # 정류장 상태 센서 (Unique ID: seoul_bus_정류장ID)
+    issued_date = conf.get(CONF_API_ISSUED_DATE)
+    if issued_date:
+        entities.append(SeoulBusApiInfoSensor(issued_date, entry))
+
     entities.append(SeoulBusStationSensor(coordinator, station_id, station_nm, entry))
 
     data_struct = coordinator.data if isinstance(coordinator.data, dict) else {}
     items = data_struct.get("items", [])
 
-    # 버스 센서 생성 (Unique ID: seoul_bus_정류장ID_버스ID)
     if include_list:
         for b_id in include_list:
             entities.append(SeoulBusSensor(coordinator, {"busRouteId": b_id, "rtNm": b_id}, station_id, entry))
@@ -33,12 +36,29 @@ class SeoulBusBaseEntity:
 
     @property
     def device_info(self):
-        # 모든 항목을 하나의 기기로 강제 통합
+        # [핵심] identifiers를 고정값으로 설정하여 모든 정류장 정보를 하나의 기기로 통합
         return {
-            "identifiers": {(DOMAIN, "seoul_bus_global")},
+            "identifiers": {(DOMAIN, "seoul_bus_total_integrated_system")},
             "name": "서울 버스 통합 정보",
             "manufacturer": "Seoul Bus API",
+            "model": "통합 관리 서비스",
         }
+
+class SeoulBusApiInfoSensor(SeoulBusBaseEntity, SensorEntity):
+    def __init__(self, issued_date, entry):
+        super().__init__(entry)
+        self._issued_date = issued_date
+        self._attr_unique_id = f"seoul_bus_api_info_{entry.entry_id}"
+        self._attr_name = "API 만료 정보"
+        self._attr_icon = "mdi:key-variant"
+
+    @property
+    def state(self):
+        try:
+            tmp = self._issued_date.split("-")
+            expired = datetime(year=int(tmp[0])+2, month=int(tmp[1]), day=int(tmp[2]))
+            return (expired - datetime.today()).days
+        except: return "오류"
 
 class SeoulBusStationSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
     def __init__(self, coordinator, station_id, station_name, entry):
