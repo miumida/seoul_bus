@@ -12,24 +12,20 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     entities = []
     
-    # 1. API 만료 센서
     issued_date = conf.get(CONF_API_ISSUED_DATE)
     if issued_date:
         entities.append(SeoulBusApiInfoSensor(issued_date, entry))
 
-    # 2. 정류장 상태 센서
     entities.append(SeoulBusStationSensor(coordinator, station_id, station_nm, entry))
 
-    # 3. 버스 노선 센서 (데이터 유무와 상관없이 엔티티를 생성하여 '사용불가' 방지)
-    data_dict = coordinator.data if isinstance(coordinator.data, dict) else {}
-    items = data_dict.get("items", [])
-    
-    # 설정에 포함된 버스가 있다면 해당 버스들을 먼저 생성 (상태는 코디네이터가 처리)
+    data_struct = coordinator.data if isinstance(coordinator.data, dict) else {}
+    items = data_struct.get("items", [])
+
+    # 센서 리스트 생성
     if include_list:
         for b_id in include_list:
             entities.append(SeoulBusSensor(coordinator, {"busRouteId": b_id, "rtNm": b_id}, station_id, entry))
     elif items:
-        # 특정 리스트가 없으면 검색된 모든 버스 생성
         for item in items:
             entities.append(SeoulBusSensor(coordinator, item, station_id, entry))
     
@@ -41,9 +37,9 @@ class SeoulBusBaseEntity:
 
     @property
     def device_info(self):
-        # [핵심] identifiers를 상수로 고정하여 모든 정류소 등록 건이 하나의 기기로 모이게 함
+        # [핵심] identifiers를 상수로 고정하여 mart_holiday처럼 모든 등록 건을 하나의 기기로 묶음
         return {
-            "identifiers": {(DOMAIN, "seoul_bus_total_integrated_service")},
+            "identifiers": {(DOMAIN, "seoul_bus_global_integrated_device")},
             "name": "서울 버스 통합 정보",
             "manufacturer": "Seoul Bus API",
             "model": "통합 관리 서비스",
@@ -63,7 +59,7 @@ class SeoulBusApiInfoSensor(SeoulBusBaseEntity, SensorEntity):
             tmp = self._issued_date.split("-")
             expired = datetime(year=int(tmp[0])+2, month=int(tmp[1]), day=int(tmp[2]))
             return (expired - datetime.today()).days
-        except: return "Error"
+        except: return "오류"
 
 class SeoulBusStationSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
     def __init__(self, coordinator, station_id, station_name, entry):
