@@ -24,8 +24,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             is_waiting = True
 
         if is_waiting:
-            # 기존 데이터를 유지하거나 빈 구조를 반환하여 센서 '사용불가' 방지
-            prev_items = coordinator.data.get("items", []) if coordinator.data else []
+            # 기존 데이터를 유지하거나 빈 리스트를 반환하여 센서 삭제를 방지
+            prev_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
             return {"status": "waiting", "items": prev_items}
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
