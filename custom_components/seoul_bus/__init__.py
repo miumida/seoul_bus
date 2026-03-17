@@ -25,7 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 is_waiting = True
 
         if is_waiting:
-            # 기존 데이터를 담은 리스트를 반환하여 엔티티 유지
+            # 시간외 구간에도 센서가 사라지지 않게 마지막 데이터 유지
             old_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
             return {"status": "waiting", "items": old_items}
 
