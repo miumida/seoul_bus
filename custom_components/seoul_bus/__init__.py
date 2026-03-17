@@ -15,13 +15,19 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_update_data():
         conf = {**entry.data, **entry.options}
-        now = datetime.now().strftime("%H:%M")
-        start, end = conf[CONF_START_TIME][:5], conf[CONF_END_TIME][:5]
+        now = datetime.now().strftime("%H:%M:%S")
+        start, end = conf[CONF_START_TIME], conf[CONF_END_TIME]
 
-        # 시작과 종료가 같으면 24시간 업데이트, 다르면 범위 체크
-        if start != end and not (start <= now <= end):
-            prev_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
-            return {"status": "waiting", "items": prev_items}
+        # 00:00:00 ~ 00:00:00 이면 24시간 작동
+        is_waiting = False
+        if start != end:
+            if not (start <= now <= end):
+                is_waiting = True
+
+        if is_waiting:
+            # 기존 데이터를 담은 리스트를 반환하여 엔티티 유지
+            old_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
+            return {"status": "waiting", "items": old_items}
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
         try:
