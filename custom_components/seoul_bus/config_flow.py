@@ -24,9 +24,13 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_STATION_ID): str,
                 vol.Optional("include_buses", default=""): str,
                 vol.Optional(CONF_API_ISSUED_DATE): str,
-                # 초 단위 없이 시:분만 입력받도록 기본값 설정
-                vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector(),
-                vol.Optional(CONF_END_TIME, default="00:00"): selector.TimeSelector(),
+                # 초 단위를 제외한 시:분 형식 적용
+                vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector(
+                    selector.TimeSelectorConfig(format="hh:mm")
+                ),
+                vol.Optional(CONF_END_TIME, default="00:00"): selector.TimeSelector(
+                    selector.TimeSelectorConfig(format="hh:mm")
+                ),
                 vol.Optional(CONF_STATION_NAME, default=DEFAULT_NAME): str,
             }),
         )
@@ -56,7 +60,11 @@ class SeoulBusOptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(CONF_STATION_ID, default=options.get(CONF_STATION_ID, data.get(CONF_STATION_ID))): str,
                 vol.Optional("include_buses", default=options.get("include_buses", data.get("include_buses", ""))): str,
                 vol.Optional(CONF_API_ISSUED_DATE, default=options.get(CONF_API_ISSUED_DATE, data.get(CONF_API_ISSUED_DATE, ""))): str,
-                vol.Required(CONF_START_TIME, default=options.get(CONF_START_TIME, data.get(CONF_START_TIME, "00:00"))): selector.TimeSelector(),
-                vol.Required(CONF_END_TIME, default=options.get(CONF_END_TIME, data.get(CONF_END_TIME, "00:00"))): selector.TimeSelector(),
+                vol.Required(CONF_START_TIME, default=options.get(CONF_START_TIME, data.get(CONF_START_TIME, "00:00"))): selector.TimeSelector(
+                    selector.TimeSelectorConfig(format="hh:mm")
+                ),
+                vol.Required(CONF_END_TIME, default=options.get(CONF_END_TIME, data.get(CONF_END_TIME, "00:00"))): selector.TimeSelector(
+                    selector.TimeSelectorConfig(format="hh:mm")
+                ),
             }),
         )
