@@ -16,13 +16,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_update_data():
         conf = {**entry.data, **entry.options}
         now = datetime.now().strftime("%H:%M")
-        
-        start = conf[CONF_START_TIME][:5]
-        end = conf[CONF_END_TIME][:5]
+        start, end = conf[CONF_START_TIME][:5], conf[CONF_END_TIME][:5]
 
-        if start != end:
-            if not (start <= now <= end):
-                return {"status": "waiting"}
+        # 시간 외 구간 체크
+        is_waiting = False
+        if start != end and not (start <= now <= end):
+            is_waiting = True
+
+        if is_waiting:
+            # 기존 데이터를 유지하거나 빈 구조를 반환하여 센서 '사용불가' 방지
+            prev_items = coordinator.data.get("items", []) if coordinator.data else []
+            return {"status": "waiting", "items": prev_items}
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
         try:
@@ -31,10 +35,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     async with session.get(url) as response:
                         data = xmltodict.parse(await response.text())
                         msg_body = data.get('ServiceResult', {}).get('msgBody')
-                        if not msg_body: return []
-                        items = msg_body.get('itemList')
-                        if not items: return []
-                        return items if isinstance(items, list) else [items]
+                        items = msg_body.get('itemList') if msg_body else []
+                        res = items if isinstance(items, list) else ([items] if items else [])
+                        return {"status": "active", "items": res}
         except Exception as err:
             raise UpdateFailed(f"API Error: {err}")
 
@@ -46,7 +49,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-    
     entry.async_on_unload(entry.add_update_listener(lambda h, e: h.config_entries.async_reload(e.entry_id)))
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     return True
