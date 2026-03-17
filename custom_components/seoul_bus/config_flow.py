@@ -16,18 +16,18 @@ class SeoulBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title = user_input.get(CONF_STATION_NAME) or f"정류장 {user_input[CONF_STATION_ID]}"
             return self.async_create_entry(title=title, data=user_input)
 
-        # 핵심: default와 format의 길이를 5자리로 통일
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
                 vol.Required(CONF_API_KEY): str,
                 vol.Required(CONF_STATION_ID): str,
                 vol.Optional(CONF_STATION_NAME): str,
-                vol.Optional(CONF_START_TIME, default="00:00"): selector.TimeSelector(
-                    selector.TimeSelectorConfig(format="hh:mm")
+                # 시/분만 입력받는 가장 안전한 방법
+                vol.Optional(CONF_START_TIME, default="00:00"): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.TIME)
                 ),
-                vol.Optional(CONF_END_TIME, default="00:00"): selector.TimeSelector(
-                    selector.TimeSelectorConfig(format="hh:mm")
+                vol.Optional(CONF_END_TIME, default="00:00"): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.TIME)
                 ),
                 vol.Optional("include_buses"): str,
                 vol.Optional(CONF_API_ISSUED_DATE): str,
@@ -47,30 +47,21 @@ class SeoulBusOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        options = self._config_entry.options
-        data = self._config_entry.data
+        conf = {**self._config_entry.data, **self._config_entry.options}
         
-        def get_v(key, default_val=""):
-            return options.get(key, data.get(key, default_val))
-
-        # 기존에 혹시라도 8자리로 저장된 데이터가 있다면 5자리로 잘라서 로드
-        def fix_t(key):
-            val = get_v(key, "00:00")
-            return val[:5] if val else "00:00"
-
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required(CONF_API_KEY, default=get_v(CONF_API_KEY)): str,
-                vol.Required(CONF_STATION_ID, default=get_v(CONF_STATION_ID)): str,
-                vol.Optional(CONF_STATION_NAME, default=get_v(CONF_STATION_NAME)): str,
-                vol.Optional(CONF_START_TIME, default=fix_t(CONF_START_TIME)): selector.TimeSelector(
-                    selector.TimeSelectorConfig(format="hh:mm")
+                vol.Required(CONF_API_KEY, default=conf.get(CONF_API_KEY, "")): str,
+                vol.Required(CONF_STATION_ID, default=conf.get(CONF_STATION_ID, "")): str,
+                vol.Optional(CONF_STATION_NAME, default=conf.get(CONF_STATION_NAME, "")): str,
+                vol.Optional(CONF_START_TIME, default=conf.get(CONF_START_TIME, "00:00")[:5]): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.TIME)
                 ),
-                vol.Optional(CONF_END_TIME, default=fix_t(CONF_END_TIME)): selector.TimeSelector(
-                    selector.TimeSelectorConfig(format="hh:mm")
+                vol.Optional(CONF_END_TIME, default=conf.get(CONF_END_TIME, "00:00")[:5]): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.TIME)
                 ),
-                vol.Optional("include_buses", default=get_v("include_buses")): str,
-                vol.Optional(CONF_API_ISSUED_DATE, default=get_v(CONF_API_ISSUED_DATE)): str,
+                vol.Optional("include_buses", default=conf.get("include_buses", "")): str,
+                vol.Optional(CONF_API_ISSUED_DATE, default=conf.get(CONF_API_ISSUED_DATE, "")): str,
             }),
         )
