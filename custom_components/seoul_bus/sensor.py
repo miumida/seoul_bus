@@ -7,29 +7,37 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     station_id = entry.data[CONF_STATION_ID]
     
+    conf = {**entry.data, **entry.options}
+    # 쉼표로 구분된 버스 번호들을 리스트로 변환
+    include_list = [x.strip() for x in conf.get("include_buses", "").split(",") if x.strip()]
+    exclude_list = [x.strip() for x in conf.get("exclude_buses", "").split(",") if x.strip()]
+
     entities = []
     
-    # 1. API 정보 센서 (공통 기기에 소속)
-    issued_date = entry.data.get(CONF_API_ISSUED_DATE) or entry.options.get(CONF_API_ISSUED_DATE)
+    issued_date = conf.get(CONF_API_ISSUED_DATE)
     if issued_date:
         entities.append(SeoulBusApiInfoSensor(issued_date, entry.entry_id))
 
     if coordinator.data:
-        # 2. 정류장 상태 센서 (공통 기기에 소속)
         entities.append(SeoulBusStationSensor(coordinator, station_id))
         
-        # 3. 버스 노선별 센서 (공통 기기에 소속)
         for item in coordinator.data:
+            bus_id = item['busRouteId'] # API에서 제공하는 버스 노선 ID
+            
+            # 필터링 로직 적용
+            if include_list and bus_id not in include_list:
+                continue
+            if exclude_list and bus_id in exclude_list:
+                continue
+                
             entities.append(SeoulBusSensor(coordinator, item, station_id))
     
     async_add_entities(entities)
 
 class SeoulBusBaseEntity:
-    """모든 엔티티를 단 하나의 '서울 버스' 기기로 묶어주는 베이스 클래스"""
     @property
     def device_info(self):
         return {
-            # 고정된 ID를 사용하여 모든 정류장/버스를 하나의 기기로 통합
             "identifiers": {(DOMAIN, "integrated_seoul_bus_device")},
             "name": "서울 버스 통합 정보",
             "manufacturer": "Seoul Bus API",
@@ -86,10 +94,5 @@ class SeoulBusSensor(CoordinatorEntity, SeoulBusBaseEntity, SensorEntity):
     def extra_state_attributes(self):
         for item in self.coordinator.data:
             if item['busRouteId'] == self._route_id:
-                return {
-                    "방향": item.get('adirection'),
-                    "두번째도착": item.get('arrmsg2'),
-                    "정류소": item.get('stNm'),
-                    "정류소ID": self._station_id
-                }
+                return {"방향": item.get('adirection'), "두번째도착": item.get('arrmsg2'), "정류소": item.get('stNm'), "정류소ID": self._station_id}
         return {}
