@@ -18,25 +18,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         now = datetime.now().strftime("%H:%M")
         start, end = conf[CONF_START_TIME][:5], conf[CONF_END_TIME][:5]
 
-        # 시간 범위 체크 (00:00~00:00은 항상 통과)
+        # 시간 범위 체크 (같으면 24시간 업데이트)
+        is_waiting = False
         if start != end and not (start <= now <= end):
-            # 이전 데이터가 있으면 유지하여 센서가 사라지지 않게 함
-            old_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
-            return {"status": "waiting", "items": old_items}
+            is_waiting = True
+
+        if is_waiting:
+            # 기존 데이터를 유지하거나 빈 구조를 반환하여 센서 삭제 방지
+            prev_items = coordinator.data.get("items", []) if coordinator.data and isinstance(coordinator.data, dict) else []
+            return {"status": "waiting", "items": prev_items}
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
         try:
             async with async_timeout.timeout(15):
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as response:
-                        res_text = await response.text()
-                        data = xmltodict.parse(res_text)
+                        data = xmltodict.parse(await response.text())
                         msg_body = data.get('ServiceResult', {}).get('msgBody')
                         items = msg_body.get('itemList') if msg_body else []
                         res = items if isinstance(items, list) else ([items] if items else [])
                         return {"status": "active", "items": res}
         except Exception as err:
-            raise UpdateFailed(f"API 호출 실패: {err}")
+            raise UpdateFailed(f"API Error: {err}")
 
     coordinator = DataUpdateCoordinator(
         hass, _LOGGER, name=f"{DOMAIN}_{entry.data[CONF_STATION_ID]}",
