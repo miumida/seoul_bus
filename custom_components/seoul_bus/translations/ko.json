@@ -1,0 +1,40 @@
+{
+    "title": "서울 버스(Seoul Bus)",
+    "config": {
+        "abort": {
+            "single_instance_allowed": "이미 존재합니다."
+        },
+        "step": {
+            "confirm": {
+                "description": "서울 버스(Seoul Bus)를 설치하시겠습니까?"
+            },
+            "user": {
+                "title": "서울 버스(Seoul Bus)",
+                "description": "서울 버스(Seoul Bus)를 설정합니다. API KEY는 공공데이터포털의 [서울특별시_정류소정보조회 서비스](https://www.data.go.kr/data/15000303/openapi.do)에서 신청하시기 바랍니다.",
+                "data": {
+                    "api_key": "API KEY",
+                    "station_id": "정류소ID",
+                    "station_name": "정류소 이름",
+                    "start_time": "시작시간",
+                    "end_time": "종료시간",
+                    "include_buses": "대상 버스 목록"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "서울 버스(Seoul Bus)",
+                "data": {
+                    "api_key": "API KEY",
+                    "station_id": "정류소ID",
+                    "station_name": "정류소 이름",
+                    "start_time": "시작시간",
+                    "end_time": "종료시간",
+                    "include_buses": "대상 버스 목록"
+                }
+            }
+        }
+    }
+}
