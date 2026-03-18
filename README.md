@@ -1,10 +1,10 @@
-# 서울 버스(Seoul Bus)
+# 서울 버스(Seoul Bus) for Home Assistant
 
 ![HAKC)][hakc-shield]
 ![HACS][hacs-shield]
 ![Version v2.0.0][version-shield]
 
-Seoul Bus Sensor for Home Assistant 입니다.<br>
+서울 버스(Seoul Bus) for Home Assistant 입니다.<br>
 - 서울버스 도착정보를 알려줍니다.
 - 지정한 정류장에 도착예정인 버스를 확인할 수 있습니다.
 - Murianwind님이 리뉴얼 해주셨습니다. 감사합니다.
