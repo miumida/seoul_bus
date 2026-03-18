@@ -22,7 +22,7 @@ Seoul Bus Sensor for Home Assistant 입니다.<br>
 | Version | Date        | 내용              |
 | :-----: | :---------: | ----------------------- |
 | v1.0.0  | 2020.01.15  | First version  |
-| v2.0.0  | 2023.03.19  | Renewal version. Thx. |
+| v2.0.0  | 2026.03.19  | Renewal version. (Thx. Murianwind) |
 
 <br>
 
