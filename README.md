@@ -53,8 +53,8 @@ Home Assistant에서 공공데이터포털 API를 이용하여 서울 버스 정
 |옵션|값|
 |--|--|
 |api_key| (필수) 공공데이터포털 API KEY |
-|station_id| (필수) 정류소ID |
-|station_name | (옵션) 정류소 이름 |
+|station_id| (필수) 정류장ID |
+|station_name | (옵션) 정류장 이름 |
 |start_time| (옵션) 특정구간의 버스정보를 갱신하기 위한 시작시간 |
 |end_time| (옵션) 특정구간의 버스정보를 갱신하기 위한 종료시간 |
 |include_buses| (옵션) 대상 버스 목록 |
@@ -62,10 +62,12 @@ Home Assistant에서 공공데이터포털 API를 이용하여 서울 버스 정
 <br>
 
 ### 정류장ID(station_id) 값 확인
-- station_id는 정류장ID 입니다.
-- [서울 버스도착정보 - 버스노선 사이트](<https://bus.go.kr/app/#viewpage/1000001/main.nearbusinfo/1/title>)에 접속하여 정류장을 조회하여 ```정류소번호```를 확인합니다.
+station_id는 정류장ID 입니다.
+1. [서울 버스도착정보 - 버스노선 사이트](<https://bus.go.kr/app/#viewpage/1000001/main.nearbusinfo/1/title>)에 접속합니다.
+2. 정류장을 선택하고, 정류장 이름을 입력하여 조회합니다.
+3. 원하는 정류장의 괄호안의 숫자를 확인합니다. (<b>03198</b>)서울역11번출구
 
-![screenshot_3](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_3.png?raw=true)<br>
+![screenshot_3](https://github.com/miumida/seoul_bus/blob/master/image/busgokr.png?raw=true)<br>
 
 <br>
 
