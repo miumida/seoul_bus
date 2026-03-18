@@ -52,7 +52,7 @@ Home Assistant에서 공공데이터포털 API를 이용하여 서울 버스 정
 
 |옵션|값|
 |--|--|
-|api_key| (필수) 서울버스 API KEY |
+|api_key| (필수) 공공데이터포털 API KEY |
 |station_id| (필수) 정류소ID |
 |station_name | (옵션) 정류소 이름 |
 |start_time| (옵션) 특정구간의 버스정보를 갱신하기 위한 시작시간 |
@@ -61,8 +61,8 @@ Home Assistant에서 공공데이터포털 API를 이용하여 서울 버스 정
 
 <br>
 
-### 정류장 고유번호(station_id) 값 확인
-- station_id는 정류장 고유번호입니다.
+### 정류장ID(station_id) 값 확인
+- station_id는 정류장ID 입니다.
 - [서울 버스도착정보 - 버스노선 사이트](<https://bus.go.kr/app/#viewpage/1000001/main.nearbusinfo/1/title>)에 접속하여 정류장을 조회하여 ```정류소번호```를 확인합니다.
 
 ![screenshot_3](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_3.png?raw=true)<br>
