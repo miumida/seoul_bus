@@ -4,12 +4,18 @@
 ![HACS][hacs-shield]
 ![Version v2.0.0][version-shield]
 
-서울 버스(Seoul Bus) for Home Assistant 입니다.<br>
+Home Assistant에서 공공데이터포털 API를 이용하여 서울 버스 정보를 표시하는 센서입니다.
 - 서울버스 도착정보를 알려줍니다.
 - 지정한 정류장에 도착예정인 버스를 확인할 수 있습니다.
 - Murianwind님이 리뉴얼 해주셨습니다. 감사합니다.
 
-<br><br>
+<br>
+
+## API KEY 발급
+공공데이터포털에서 [서울특별시_정류소정보조회 서비스](<https://www.data.go.kr/data/15000303/openapi.do>)를 발급신청하여 인증키를 발급받습니다.
+
+<br>
+
 ## Version history
 | Version | Date        | 내용              |
 | :-----: | :---------: | ----------------------- |
@@ -53,23 +59,16 @@
 
 <br>
 
-### API KEY 발급
-공공데이터포털에서 [서울특별시_정류소정보조회 서비스](<https://www.data.go.kr/data/15000303/openapi.do>)를 발급신청하여 인증키를 발급받습니다.
-
-<br>
-
 ### 정류장 고유번호(station_id) 값 확인
 - station_id는 정류장 고유번호입니다.
-- 서울 버스도착정보 - 버스노선 사이트(<http://bus.go.kr/searchResult6.jsp>)에 접속하여 정류장을 조회하여 ```정류소번호```를 확인합니다.
+- [서울 버스도착정보 - 버스노선 사이트](<https://bus.go.kr/app/#viewpage/1000001/main.nearbusinfo/1/title>)에 접속하여 정류장을 조회하여 ```정류소번호```를 확인합니다.
 
 ![screenshot_3](https://github.com/miumida/seoul_bus/blob/master/image/Screenshot_3.png?raw=true)<br>
-<br>
-
-### include_buses/exclude_buses 버스id(노선id)설정값
-- include_buses/exclude_buses의 버스id(노선id)를 입력하여 설정한다.
-- 서울특별시 버스노선 기본정보 항목정보(<http://data.seoul.go.kr/dataList/OA-15262/F/1/datasetView.do>)에서 버스노스id를 확인하여 입력한다.
 
 <br>
+
+## Thx.
+- Murianwind님 대대적으로 리뉴얼 해주셔서 감사합니다:D
 
 ## 참고사이트
 [1]서울 버스도착정보 - 버스노선 사이트(<http://bus.go.kr/searchResult6.jsp>)<br>
