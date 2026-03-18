@@ -1,4 +1,4 @@
-# Seoul Bus Sensor(서울버스)
+# 서울 버스(Seoul Bus)
 
 ![HAKC)][hakc-shield]
 ![HACS][hacs-shield]
