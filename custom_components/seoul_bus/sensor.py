@@ -4,7 +4,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.util import slugify
-from .const import DOMAIN, CONF_STATION_ID, CONF_STATION_NAME, CONF_INCLUDE_BUSES
+from .const import DOMAIN, VERSION, CONF_STATION_ID, CONF_STATION_NAME, CONF_INCLUDE_BUSES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +79,7 @@ class SeoulBusBase(CoordinatorEntity):
             identifiers={(DOMAIN, self._station_id)},
             name=self._station_name,
             manufacturer="Seoul Bus",
+            sw_version=VERSION,
         )
 
 class SeoulBusStationSensor(SeoulBusBase, SensorEntity):
@@ -93,6 +94,12 @@ class SeoulBusStationSensor(SeoulBusBase, SensorEntity):
         status = self.coordinator.data.get("status")
         return "운영중" if status == "active" else "업데이트 대기중"
 
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return "mdi:bus-stop"
+
+
 class SeoulBusLastUpdateSensor(SeoulBusBase, SensorEntity):
     def __init__(self, coordinator, entry, station_id, station_name, unique_id):
         super().__init__(coordinator, entry, station_id, station_name)
@@ -104,6 +111,12 @@ class SeoulBusLastUpdateSensor(SeoulBusBase, SensorEntity):
     @property
     def native_value(self):
         return getattr(self.coordinator, "last_update_success_time", None)
+
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return "mdi:update"
+
 
 class SeoulBusSensor(SeoulBusBase, SensorEntity):
     def __init__(self, coordinator, entry, item, station_id, station_name, unique_id, bus_route_id, last_known_nm=None):
@@ -139,3 +152,8 @@ class SeoulBusSensor(SeoulBusBase, SensorEntity):
             if item.get("busRouteId") == self._bus_route_id:
                 return item.get("arrmsg1")
         return "정보 없음"
+
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return "mdi:bus"
