@@ -21,12 +21,8 @@ Seoul Bus Sensor for Home Assistant 입니다.<br>
 ## Version history
 | Version | Date        | 내용              |
 | :-----: | :---------: | ----------------------- |
-| v1.0    | 2020.01.15  | First version  |
-| v1.1    | 2020.01.16  | Exception 처리 추가. API 오류코드/메세지 표시  |
-| v1.2    | 2020.01.20  | xml2dict 문제점 보완. 정류장센서 update_time 구간만 상태반영  |
-| v1.3    | 2020.04.21  | 정류장/버스센서 update_time 구간 상태반영 수정.  |
-| v1.4    | 2020.04.21  | 버스센서 속성명 변경  |
-| v1.4    | 2021.10.24  | manifest.json add version info  |
+| v1.0.0  | 2020.01.15  | First version  |
+| v2.0.0  | 2023.03.19  | Renewal version. Thx. |
 
 <br>
 
@@ -80,7 +76,7 @@ sensor:
 <br>
 
 ### API KEY 발급
-공공데이터포털에서 정류소정보조회 서비스(<https://www.data.go.kr/data/15000303/openapi.do>)를 발급신청하여 인증키를 발급받습니다.
+공공데이터포털에서 [정류소정보조회 서비스](<https://www.data.go.kr/data/15000303/openapi.do>)를 발급신청하여 인증키를 발급받습니다.
 
 <br>
 
@@ -136,6 +132,6 @@ sensor:
 [1]서울 버스도착정보 - 버스노선 사이트(<http://bus.go.kr/searchResult6.jsp>)<br>
 [2]서울특별시 버스노선 기본정보 항목정보(<http://data.seoul.go.kr/dataList/OA-15262/F/1/datasetView.do>)
 
-[version-shield]: https://img.shields.io/badge/version-v1.4.1-orange.svg
+[version-shield]: https://img.shields.io/badge/version-v2.0.0-orange.svg
 [hakc-shield]: https://img.shields.io/badge/HAKC-Enjoy-blue.svg
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-red.svg
