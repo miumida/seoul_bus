@@ -9,7 +9,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.const import CONF_API_KEY, Platform
 from homeassistant.util import dt as dt_util
-from .const import DOMAIN, CONF_STATION_ID, CONF_START_TIME, CONF_END_TIME, CONF_INCLUDE_BUSES
+from .const import (
+    DOMAIN, CONF_STATION_ID, CONF_START_TIME, CONF_END_TIME, CONF_INCLUDE_BUSES,
+    CONF_INTERVAL_1_START, CONF_INTERVAL_1_END, CONF_INTERVAL_1_SEC,
+    CONF_INTERVAL_2_START, CONF_INTERVAL_2_END, CONF_INTERVAL_2_SEC,
+    CONF_INTERVAL_3_START, CONF_INTERVAL_3_END, CONF_INTERVAL_3_SEC
+)
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
@@ -30,7 +35,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if not (now >= start or now <= end): is_waiting = True
 
         if is_waiting:
+            # 대기 중에는 기본 간격(60초) 유지
+            if coordinator.update_interval != timedelta(seconds=60):
+                coordinator.update_interval = timedelta(seconds=60)
             return {"status": "waiting", "items": coordinator.data.get("items", []) if coordinator.data else []}
+
+        # 동적 업데이트 주기 (커스텀 1~3)
+        new_interval = 60
+        intervals = [
+            (conf.get(CONF_INTERVAL_1_START, ""), conf.get(CONF_INTERVAL_1_END, ""), conf.get(CONF_INTERVAL_1_SEC, 10)),
+            (conf.get(CONF_INTERVAL_2_START, ""), conf.get(CONF_INTERVAL_2_END, ""), conf.get(CONF_INTERVAL_2_SEC, 10)),
+            (conf.get(CONF_INTERVAL_3_START, ""), conf.get(CONF_INTERVAL_3_END, ""), conf.get(CONF_INTERVAL_3_SEC, 10)),
+        ]
+        
+        for c_start, c_end, c_sec in intervals:
+            if c_start and c_end and c_start != c_end:
+                if c_start < c_end:
+                    if c_start <= now <= c_end:
+                        new_interval = c_sec
+                        break
+                else:
+                    if now >= c_start or now <= c_end:
+                        new_interval = c_sec
+                        break
+                        
+        if coordinator.update_interval != timedelta(seconds=new_interval):
+            coordinator.update_interval = timedelta(seconds=new_interval)
+            _LOGGER.debug(f"Update interval changed to {new_interval}s for {entry.data.get(CONF_STATION_ID)}")
+
 
         url = f"http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey={conf[CONF_API_KEY]}&arsId={conf[CONF_STATION_ID]}"
         try:
